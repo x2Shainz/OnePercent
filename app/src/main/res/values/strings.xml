@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">OnePercent</string>
+    <string name="add_task">Add Task</string>
+    <string name="today_tasks">Today\'s Tasks</string>
+    <string name="task_name_label">Task name</string>
+    <string name="due_date_label">Due date</string>
+    <string name="save">Save</string>
+    <string name="no_tasks_today">No tasks due today.</string>
+    <string name="select_date">Select date</string>
+</resources>

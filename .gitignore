@@ -1,0 +1,17 @@
+# Gradle
+.gradle/
+build/
+out/
+
+# Android Studio / IntelliJ
+*.iml
+.idea/
+local.properties
+*.DS_Store
+
+# Generated (KSP / build outputs)
+app/build/
+
+# Signing
+*.jks
+*.keystore
