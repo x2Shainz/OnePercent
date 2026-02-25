@@ -25,4 +25,18 @@ interface TaskDao {
         """
     )
     fun getTasksForDay(startOfDayMillis: Long, endOfDayMillis: Long): Flow<List<Task>>
+
+    /**
+     * Returns all tasks whose dueDate falls within [startOfWeekMillis, endOfWeekMillis).
+     * endOfWeekMillis should be the start of the day after Saturday.
+     */
+    @Query(
+        """
+        SELECT * FROM tasks
+        WHERE dueDate >= :startOfWeekMillis
+          AND dueDate < :endOfWeekMillis
+        ORDER BY dueDate ASC
+        """
+    )
+    fun getTasksForWeek(startOfWeekMillis: Long, endOfWeekMillis: Long): Flow<List<Task>>
 }

@@ -55,3 +55,33 @@ sequenceDiagram
     VM-->>Screen: tasks (StateFlow)
     Screen->>Screen: collectAsStateWithLifecycle()\nRender LazyColumn or empty state
 ```
+
+## Loading a Week's Tasks (WeeklyPagerScreen)
+
+```mermaid
+sequenceDiagram
+    participant Nav as NavGraph
+    participant Screen as WeeklyPagerScreen
+    participant VM as WeeklyPagerViewModel
+    participant WC as WeekCalculator
+    participant Repo as TaskRepositoryImpl
+    participant DAO as TaskDao
+    participant DB as Room / SQLite
+
+    Nav->>Screen: weekStartEpochDay (Long route arg)
+    Screen->>VM: Factory(repository, weekStartEpochDay)
+    VM->>WC: weekRangeFromEpochDay(epochDay)
+    WC-->>VM: WeekRange(sunday, saturday)
+    VM->>VM: Compute weekStartMillis / weekEndMillis\n(local timezone midnight)
+    VM->>Repo: getTasksForWeek(start, end)
+    Repo->>DAO: getTasksForWeek(start, end): Flow<List<Task>>
+    DAO->>DB: SELECT * FROM tasks\nWHERE dueDate >= start AND dueDate < end
+    DB-->>DAO: List<Task> (all 7 days, ascending)
+    DAO-->>VM: Flow emits list
+    VM->>WC: daysInWeek(weekRange)
+    WC-->>VM: List<LocalDate> (7 dates, Sun→Sat)
+    VM->>VM: groupByDay → List<DayTasks> of exactly 7\n(empty list for days with no tasks)
+    VM->>VM: stateIn → StateFlow<WeeklyPagerUiState>
+    VM-->>Screen: uiState (StateFlow)
+    Screen->>Screen: HorizontalPager — 7 pages\nTopAppBar title = formatDayTitle(currentPage)
+```

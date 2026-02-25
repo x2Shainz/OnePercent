@@ -7,4 +7,9 @@
     <string name="save">Save</string>
     <string name="no_tasks_today">No tasks due today.</string>
     <string name="select_date">Select date</string>
+    <string name="open_drawer">Open navigation menu</string>
+    <string name="index">Index</string>
+    <string name="weeks">Weeks</string>
+    <string name="no_tasks_this_day">No tasks due.</string>
+    <string name="today">Today</string>
 </resources>
