@@ -12,7 +12,7 @@ OnePercent is an Android digital bullet journal app. Built with Kotlin, Jetpack 
 - **Architecture**: MVVM — ViewModel + StateFlow, repository pattern, manual DI via `OnePercentApp`
 - **Navigation**: Navigation Compose (`NavGraph.kt`)
 - **Build**: Gradle with version catalog (`gradle/libs.versions.toml`)
-- **Min SDK**: 26, Target/Compile SDK: 35
+- **Min SDK**: 36 (Pixel 10 / Android 16), Target/Compile SDK: 36
 
 ## Build Commands
 
@@ -44,7 +44,7 @@ MainActivity
 
 **Data flow:** Screens get their ViewModel via `viewModel(factory = ViewModel.Factory(app.taskRepository))` using `LocalContext` to access `OnePercentApp`. ViewModels expose `StateFlow` collected with `collectAsStateWithLifecycle()`.
 
-**Date storage:** `Task.dueDate` is stored as epoch milliseconds (Long). The ViewModel converts to local-timezone `[startOfDay, endOfDay)` boundaries for the Room query. `minSdk = 26` means `java.time.*` is available natively.
+**Date storage:** `Task.dueDate` is stored as epoch milliseconds (Long). The ViewModel converts to local-timezone `[startOfDay, endOfDay)` boundaries for the Room query. `java.time.*` is available natively.
 
 **KSP note:** The KSP version in `libs.versions.toml` must match the Kotlin version prefix (e.g., Kotlin `2.0.21` → KSP `2.0.21-x.x.x`). Mismatching causes a build error.
 
