@@ -17,4 +17,10 @@ class TaskRepositoryImpl(
 
     override fun getTasksForWeek(startOfWeekMillis: Long, endOfWeekMillis: Long): Flow<List<Task>> =
         taskDao.getTasksForWeek(startOfWeekMillis, endOfWeekMillis)
+
+    override fun getEarliestDueDate(): Flow<Long?> =
+        taskDao.getEarliestDueDate()
+
+    override fun getTasksAfter(startMillis: Long): Flow<List<Task>> =
+        taskDao.getTasksAfter(startMillis)
 }

@@ -75,4 +75,23 @@ object WeekCalculator {
      */
     fun daysInWeek(range: WeekRange): List<LocalDate> =
         List(7) { i -> range.sunday.plusDays(i.toLong()) }
+
+    /**
+     * Returns all [WeekRange]s from the week containing [earliest] up to but not including
+     * the week starting on [exclusiveEnd] (the Sunday of the current 4-week window).
+     *
+     * Returns an empty list if [earliest] is on or after [exclusiveEnd]. When [earliest]
+     * falls mid-week, the first returned range starts on that week's Sunday.
+     */
+    fun pastWeekRanges(earliest: LocalDate, exclusiveEnd: LocalDate): List<WeekRange> {
+        val firstSunday = earliest.with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY))
+        if (!firstSunday.isBefore(exclusiveEnd)) return emptyList()
+        val ranges = mutableListOf<WeekRange>()
+        var sunday = firstSunday
+        while (sunday.isBefore(exclusiveEnd)) {
+            ranges.add(WeekRange(sunday, sunday.plusDays(6)))
+            sunday = sunday.plusWeeks(1)
+        }
+        return ranges
+    }
 }

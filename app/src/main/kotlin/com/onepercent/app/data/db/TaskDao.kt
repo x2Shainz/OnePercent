@@ -39,4 +39,18 @@ interface TaskDao {
         """
     )
     fun getTasksForWeek(startOfWeekMillis: Long, endOfWeekMillis: Long): Flow<List<Task>>
+
+    /**
+     * Returns the earliest dueDate stored in the tasks table, or null if the table is empty.
+     * Used to determine how far back the Past Weeks section should reach.
+     */
+    @Query("SELECT MIN(dueDate) FROM tasks")
+    fun getEarliestDueDate(): Flow<Long?>
+
+    /**
+     * Returns all tasks with dueDate >= [startMillis], ordered ascending by dueDate.
+     * Used by the Future Log screen to show tasks beyond the 4-week window.
+     */
+    @Query("SELECT * FROM tasks WHERE dueDate >= :startMillis ORDER BY dueDate ASC")
+    fun getTasksAfter(startMillis: Long): Flow<List<Task>>
 }

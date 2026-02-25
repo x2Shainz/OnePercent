@@ -85,3 +85,58 @@ sequenceDiagram
     VM-->>Screen: uiState (StateFlow)
     Screen->>Screen: HorizontalPager — 7 pages\nTopAppBar title = formatDayTitle(currentPage)
 ```
+
+## Loading the Index Screen (IndexScreen)
+
+```mermaid
+sequenceDiagram
+    participant Screen as IndexScreen
+    participant VM as IndexViewModel
+    participant WC as WeekCalculator
+    participant Repo as TaskRepositoryImpl
+    participant DAO as TaskDao
+    participant DB as Room / SQLite
+
+    Note over VM: On init, compute currentWeeks once\n(no DB query needed)
+    VM->>WC: fourWeekRanges(LocalDate.now())
+    WC-->>VM: List<WeekRange> (4 items)
+    VM->>WC: currentWeekRange(today).sunday
+    WC-->>VM: currentWeekSunday (exclusive end for pastWeeks)
+
+    VM->>Repo: getEarliestDueDate(): Flow<Long?>
+    Repo->>DAO: getEarliestDueDate()
+    DAO->>DB: SELECT MIN(dueDate) FROM tasks
+    DB-->>DAO: Long? (null if no tasks)
+    DAO-->>VM: Flow emits Long?
+    VM->>VM: map { earliestMillis → pastWeekRanges(earliest, currentWeekSunday) }
+    VM->>VM: stateIn → StateFlow<IndexUiState>
+    VM-->>Screen: uiState (pastWeeks + currentWeeks)
+    Screen->>Screen: Collapsible sections with AnimatedVisibility
+```
+
+## Loading the Future Log (FutureLogScreen)
+
+```mermaid
+sequenceDiagram
+    participant Screen as FutureLogScreen
+    participant VM as FutureLogViewModel
+    participant WC as WeekCalculator
+    participant Repo as TaskRepositoryImpl
+    participant DAO as TaskDao
+    participant DB as Room / SQLite
+
+    Note over VM: On init, compute futureStartMillis once\n(midnight of Sunday after the 4-week window)
+    VM->>WC: fourWeekRanges(LocalDate.now()).last().saturday
+    WC-->>VM: lastSaturday of 4-week window
+    VM->>VM: futureStartMillis = (lastSaturday + 1 day) at local midnight
+
+    VM->>Repo: getTasksAfter(futureStartMillis): Flow<List<Task>>
+    Repo->>DAO: getTasksAfter(startMillis)
+    DAO->>DB: SELECT * FROM tasks\nWHERE dueDate >= startMillis ORDER BY dueDate ASC
+    DB-->>DAO: List<Task>
+    DAO-->>VM: Flow emits list
+    VM->>VM: map { FutureLogUiState(tasks = it) }
+    VM->>VM: stateIn → StateFlow<FutureLogUiState>
+    VM-->>Screen: uiState.tasks
+    Screen->>Screen: groupBy week → LazyColumn with week headers\nor centered empty-state text
+```

@@ -64,8 +64,10 @@ class WeeklyPagerViewModelTest {
         fun emit(tasks: List<Task>) { weekFlow.value = tasks }
 
         override suspend fun addTask(task: Task) {}
-        override fun getTasksForDay(start: Long, end: Long): Flow<List<Task>> = flowOf(emptyList())
-        override fun getTasksForWeek(start: Long, end: Long): Flow<List<Task>> = weekFlow
+        override fun getTasksForDay(startOfDayMillis: Long, endOfDayMillis: Long): Flow<List<Task>> = flowOf(emptyList())
+        override fun getTasksForWeek(startOfWeekMillis: Long, endOfWeekMillis: Long): Flow<List<Task>> = weekFlow
+        override fun getEarliestDueDate(): Flow<Long?> = flowOf(null)
+        override fun getTasksAfter(startMillis: Long): Flow<List<Task>> = flowOf(emptyList())
     }
 
     // --- Tests ---

@@ -16,7 +16,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.onepercent.app.ui.addtask.AddTaskScreen
+import com.onepercent.app.ui.futurelog.FutureLogScreen
 import com.onepercent.app.ui.index.IndexScreen
+import com.onepercent.app.ui.months.NextMonthsScreen
+import com.onepercent.app.ui.months.PastMonthsScreen
 import com.onepercent.app.ui.navigation.DrawerContent
 import com.onepercent.app.ui.todaytasks.TodayTasksScreen
 import com.onepercent.app.ui.weeklypager.WeeklyPagerScreen
@@ -29,6 +32,9 @@ object Routes {
     const val ADD_TASK      = "add_task"
     const val INDEX         = "index"
     const val WEEKLY_PAGER  = "week/{weekStartEpochDay}"
+    const val FUTURE_LOG    = "future_log"
+    const val PAST_MONTHS   = "past_months"
+    const val NEXT_MONTHS   = "next_months"
 
     fun weeklyPager(weekStartEpochDay: Long) = "week/$weekStartEpochDay"
 }
@@ -93,8 +99,26 @@ fun OnePercentNavGraph(
                         navController.navigate(Routes.weeklyPager(epochDay)) {
                             launchSingleTop = true
                         }
+                    },
+                    onNavigateToFutureLog = {
+                        navController.navigate(Routes.FUTURE_LOG) { launchSingleTop = true }
+                    },
+                    onNavigateToPastMonths = {
+                        navController.navigate(Routes.PAST_MONTHS) { launchSingleTop = true }
+                    },
+                    onNavigateToNextMonths = {
+                        navController.navigate(Routes.NEXT_MONTHS) { launchSingleTop = true }
                     }
                 )
+            }
+            composable(Routes.FUTURE_LOG) {
+                FutureLogScreen(onOpenDrawer = { openDrawer() })
+            }
+            composable(Routes.PAST_MONTHS) {
+                PastMonthsScreen(onOpenDrawer = { openDrawer() })
+            }
+            composable(Routes.NEXT_MONTHS) {
+                NextMonthsScreen(onOpenDrawer = { openDrawer() })
             }
             composable(
                 route = Routes.WEEKLY_PAGER,

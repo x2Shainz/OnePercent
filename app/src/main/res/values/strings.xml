@@ -12,4 +12,12 @@
     <string name="weeks">Weeks</string>
     <string name="no_tasks_this_day">No tasks due.</string>
     <string name="today">Today</string>
+    <string name="past_weeks">Past Weeks</string>
+    <string name="current_weeks">Current Weeks</string>
+    <string name="future_log">Future Log</string>
+    <string name="monthly_logs">Monthly Logs</string>
+    <string name="past_months">Past Months</string>
+    <string name="next_months">Next 12 Months</string>
+    <string name="no_future_tasks">No upcoming tasks.</string>
+    <string name="coming_soon">Coming soon</string>
 </resources>
