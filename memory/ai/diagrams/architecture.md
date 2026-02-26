@@ -23,12 +23,12 @@ graph TD
     end
 
     subgraph VM["ViewModel Layer"]
-        TTVM[TodayTasksViewModel\nStateFlow&lt;List&lt;Task&gt;&gt;]
-        ATVM[AddTaskViewModel\nStateFlow&lt;AddTaskUiState&gt;]
-        WPVM[WeeklyPagerViewModel\nStateFlow&lt;WeeklyPagerUiState&gt;]
-        IVM[IndexViewModel\nStateFlow&lt;IndexUiState&gt;]
-        FLVM[FutureLogViewModel\nStateFlow&lt;FutureLogUiState&gt;]
-        EVM[EntryViewModel\ntitle + body StateFlow\nauto-save debounce]
+        TTVM["TodayTasksViewModel\n@HiltViewModel\nStateFlow&lt;List&lt;Task&gt;&gt;"]
+        ATVM["AddTaskViewModel\n@HiltViewModel\nStateFlow&lt;AddTaskUiState&gt;"]
+        WPVM["WeeklyPagerViewModel\n@HiltViewModel + @AssistedInject\nStateFlow&lt;WeeklyPagerUiState&gt;"]
+        IVM["IndexViewModel\n@HiltViewModel\nStateFlow&lt;IndexUiState&gt;"]
+        FLVM["FutureLogViewModel\n@HiltViewModel\nStateFlow&lt;FutureLogUiState&gt;"]
+        EVM["EntryViewModel\n@HiltViewModel + @AssistedInject\ntitle + body StateFlow\nauto-save debounce"]
     end
 
     subgraph UTIL["Utility"]
@@ -52,9 +52,10 @@ graph TD
         SQLITE[(onepercent.db\nSQLite)]
     end
 
-    subgraph APP["App Wiring"]
-        OPA[OnePercentApp\nApplication subclass\nservice locator]
-        MA[MainActivity]
+    subgraph DI["Dependency Injection (Hilt)"]
+        OPA["OnePercentApp\n@HiltAndroidApp"]
+        MA["MainActivity\n@AndroidEntryPoint"]
+        MOD[AppModule\n@Module @InstallIn SingletonComponent\nprovides DB + 3 repositories]
     end
 
     MA --> NG
@@ -97,14 +98,22 @@ graph TD
     EDAO --> DB
     SDAO --> DB
     DB --> SQLITE
-    OPA --> DB
-    OPA --> TRI
-    OPA --> ERI
-    OPA --> SRI
-    TTVM -.->|Factory via LocalContext| OPA
-    ATVM -.->|Factory via LocalContext| OPA
-    WPVM -.->|Factory via LocalContext| OPA
-    IVM -.->|Factory via LocalContext| OPA
-    FLVM -.->|Factory via LocalContext| OPA
-    EVM -.->|Factory via LocalContext| OPA
+    MOD -->|@Provides @Singleton| TRI
+    MOD -->|@Provides @Singleton| ERI
+    MOD -->|@Provides @Singleton| SRI
+    MOD -->|@Provides @Singleton| DB
+    TTVM -.->|hiltViewModel()| MOD
+    ATVM -.->|hiltViewModel()| MOD
+    FLVM -.->|hiltViewModel()| MOD
+    IVM -.->|hiltViewModel()| MOD
+    WPVM -.->|hiltViewModel + @AssistedInject\ncreationCallback| MOD
+    EVM -.->|hiltViewModel + @AssistedInject\ncreationCallback| MOD
 ```
+
+## DI Notes
+- `OnePercentApp` is annotated `@HiltAndroidApp` — Hilt's code-generation entry point
+- `MainActivity` is annotated `@AndroidEntryPoint` — required for Hilt to inject into the Activity
+- `AppModule` (`di/AppModule.kt`) provides `AppDatabase` and all three repositories as `@Singleton`
+- Simple ViewModels use `@HiltViewModel @Inject constructor` + `hiltViewModel()` in screens
+- Nav-arg ViewModels (`WeeklyPagerViewModel`, `EntryViewModel`) use `@HiltViewModel(assistedFactory=...)` + `@AssistedInject` + `hiltViewModel<VM, VM.Factory>(creationCallback = { it.create(arg) })`
+- Unit tests instantiate ViewModels directly — no Hilt annotations involved at test time

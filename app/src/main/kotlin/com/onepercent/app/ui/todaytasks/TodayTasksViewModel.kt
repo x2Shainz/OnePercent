@@ -1,15 +1,16 @@
 package com.onepercent.app.ui.todaytasks
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.onepercent.app.data.model.Task
 import com.onepercent.app.data.repository.TaskRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
 import java.time.ZoneId
+import javax.inject.Inject
 
 /**
  * ViewModel for the Today's Tasks screen.
@@ -17,7 +18,8 @@ import java.time.ZoneId
  * Computes the device-local [startOfDay, endOfDay) epoch-millisecond window once
  * at construction time and exposes a live [tasks] list filtered to that window.
  */
-class TodayTasksViewModel(
+@HiltViewModel
+class TodayTasksViewModel @Inject constructor(
     repository: TaskRepository
 ) : ViewModel() {
 
@@ -45,10 +47,4 @@ class TodayTasksViewModel(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = emptyList()
         )
-
-    class Factory(private val repository: TaskRepository) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            TodayTasksViewModel(repository) as T
-    }
 }

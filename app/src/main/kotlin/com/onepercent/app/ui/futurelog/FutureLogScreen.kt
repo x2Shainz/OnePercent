@@ -22,13 +22,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.onepercent.app.OnePercentApp
 import com.onepercent.app.R
 import com.onepercent.app.data.model.Task
 import com.onepercent.app.util.WeekCalculator
@@ -43,11 +41,7 @@ import java.time.ZoneId
 @Preview
 @Composable
 fun FutureLogScreen(onOpenDrawer: () -> Unit = {}) {
-    val context = LocalContext.current
-    val app = context.applicationContext as OnePercentApp
-    val viewModel: FutureLogViewModel = viewModel(
-        factory = FutureLogViewModel.Factory(app.taskRepository)
-    )
+    val viewModel: FutureLogViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     val zone = ZoneId.systemDefault()

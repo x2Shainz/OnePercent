@@ -1,17 +1,18 @@
 package com.onepercent.app.ui.futurelog
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.onepercent.app.data.model.Task
 import com.onepercent.app.data.repository.TaskRepository
 import com.onepercent.app.util.WeekCalculator
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
 import java.time.ZoneId
+import javax.inject.Inject
 
 /** UI state for [FutureLogScreen]. */
 data class FutureLogUiState(val tasks: List<Task> = emptyList())
@@ -23,7 +24,8 @@ data class FutureLogUiState(val tasks: List<Task> = emptyList())
  * after the current 4-week window (i.e., 4 weeks from this week's Saturday + 1 day). All tasks
  * with a dueDate on or after that milestone are exposed via [uiState].
  */
-class FutureLogViewModel(repository: TaskRepository) : ViewModel() {
+@HiltViewModel
+class FutureLogViewModel @Inject constructor(repository: TaskRepository) : ViewModel() {
 
     private val zone = ZoneId.systemDefault()
 
@@ -47,10 +49,4 @@ class FutureLogViewModel(repository: TaskRepository) : ViewModel() {
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = FutureLogUiState()
         )
-
-    class Factory(private val repository: TaskRepository) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            FutureLogViewModel(repository) as T
-    }
 }

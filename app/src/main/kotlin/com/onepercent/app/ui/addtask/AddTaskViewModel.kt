@@ -1,10 +1,10 @@
 package com.onepercent.app.ui.addtask
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.onepercent.app.data.model.Task
 import com.onepercent.app.data.repository.TaskRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
+import javax.inject.Inject
 
 /**
  * Immutable UI state for the Add Task screen.
@@ -28,7 +29,8 @@ data class AddTaskUiState(
 )
 
 /** ViewModel for the Add Task screen. Manages form state and persists new tasks. */
-class AddTaskViewModel(
+@HiltViewModel
+class AddTaskViewModel @Inject constructor(
     private val repository: TaskRepository
 ) : ViewModel() {
 
@@ -64,11 +66,5 @@ class AddTaskViewModel(
             repository.addTask(Task(name = state.taskName.trim(), dueDate = dueDateMillis))
             _uiState.update { it.copy(isSaving = false, saveComplete = true) }
         }
-    }
-
-    class Factory(private val repository: TaskRepository) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            AddTaskViewModel(repository) as T
     }
 }

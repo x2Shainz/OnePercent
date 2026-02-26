@@ -18,13 +18,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.onepercent.app.OnePercentApp
 import com.onepercent.app.R
 
 /**
@@ -41,10 +39,8 @@ fun EntryScreen(
     entryId: Long = -1L,
     onNavigateBack: () -> Unit = {}
 ) {
-    val context = LocalContext.current
-    val app = context.applicationContext as OnePercentApp
-    val viewModel: EntryViewModel = viewModel(
-        factory = EntryViewModel.Factory(app.entryRepository, entryId)
+    val viewModel: EntryViewModel = hiltViewModel<EntryViewModel, EntryViewModel.Factory>(
+        creationCallback = { factory -> factory.create(entryId) }
     )
 
     val title by viewModel.title.collectAsStateWithLifecycle()

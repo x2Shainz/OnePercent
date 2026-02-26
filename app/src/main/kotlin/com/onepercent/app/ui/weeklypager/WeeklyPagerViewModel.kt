@@ -1,12 +1,15 @@
 package com.onepercent.app.ui.weeklypager
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.onepercent.app.data.model.Task
 import com.onepercent.app.data.repository.TaskRepository
 import com.onepercent.app.util.WeekCalculator
 import com.onepercent.app.util.WeekRange
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -39,10 +42,14 @@ data class WeeklyPagerUiState(
  * Accepts the Sunday's [weekStartEpochDay] (from the navigation route argument), reconstructs
  * the [WeekRange], queries the repository for all tasks in that span, then groups them into
  * exactly 7 [DayTasks] entries — one per day, Sunday through Saturday.
+ *
+ * Uses assisted injection so [weekStartEpochDay] (a runtime nav-arg) can be provided alongside
+ * repository dependencies that are injected by Hilt.
  */
-class WeeklyPagerViewModel(
+@HiltViewModel(assistedFactory = WeeklyPagerViewModel.Factory::class)
+class WeeklyPagerViewModel @AssistedInject constructor(
     repository: TaskRepository,
-    weekStartEpochDay: Long
+    @Assisted val weekStartEpochDay: Long
 ) : ViewModel() {
 
     private val zone = ZoneId.systemDefault()
@@ -77,12 +84,9 @@ class WeeklyPagerViewModel(
         return WeeklyPagerUiState(weekRange = weekRange, days = days)
     }
 
-    class Factory(
-        private val repository: TaskRepository,
-        private val weekStartEpochDay: Long
-    ) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            WeeklyPagerViewModel(repository, weekStartEpochDay) as T
+    /** Assisted factory — Hilt implements this to wire [weekStartEpochDay] at call-site. */
+    @AssistedFactory
+    interface Factory {
+        fun create(weekStartEpochDay: Long): WeeklyPagerViewModel
     }
 }

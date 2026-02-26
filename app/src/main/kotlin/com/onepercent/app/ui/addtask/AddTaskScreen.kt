@@ -32,12 +32,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.onepercent.app.OnePercentApp
 import com.onepercent.app.R
 import java.time.Instant
 import java.time.ZoneId
@@ -49,11 +47,7 @@ import java.time.format.FormatStyle
 fun AddTaskScreen(
     onTaskSaved: () -> Unit
 ) {
-    val context = LocalContext.current
-    val app = context.applicationContext as OnePercentApp
-    val viewModel: AddTaskViewModel = viewModel(
-        factory = AddTaskViewModel.Factory(app.taskRepository)
-    )
+    val viewModel: AddTaskViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(uiState.saveComplete) {

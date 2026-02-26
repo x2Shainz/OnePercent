@@ -28,12 +28,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.onepercent.app.OnePercentApp
 import com.onepercent.app.R
 import com.onepercent.app.data.model.Task
 import com.onepercent.app.util.WeekCalculator
@@ -50,10 +48,8 @@ fun WeeklyPagerScreen(
     onOpenDrawer: () -> Unit,
     onNavigateToAddTask: () -> Unit
 ) {
-    val context = LocalContext.current
-    val app = context.applicationContext as OnePercentApp
-    val viewModel: WeeklyPagerViewModel = viewModel(
-        factory = WeeklyPagerViewModel.Factory(app.taskRepository, weekStartEpochDay)
+    val viewModel: WeeklyPagerViewModel = hiltViewModel<WeeklyPagerViewModel, WeeklyPagerViewModel.Factory>(
+        creationCallback = { factory -> factory.create(weekStartEpochDay) }
     )
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

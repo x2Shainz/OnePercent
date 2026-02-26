@@ -28,13 +28,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.onepercent.app.OnePercentApp
 import com.onepercent.app.R
 import com.onepercent.app.data.model.Task
 import java.time.Instant
@@ -49,11 +47,7 @@ fun TodayTasksScreen(
     onNavigateToAddTask: () -> Unit = {},
     onOpenDrawer: () -> Unit = {}
 ) {
-    val context = LocalContext.current
-    val app = context.applicationContext as OnePercentApp
-    val viewModel: TodayTasksViewModel = viewModel(
-        factory = TodayTasksViewModel.Factory(app.taskRepository)
-    )
+    val viewModel: TodayTasksViewModel = hiltViewModel()
     val tasks by viewModel.tasks.collectAsStateWithLifecycle()
 
     Scaffold(

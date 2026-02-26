@@ -1,9 +1,12 @@
 package com.onepercent.app.ui.entry
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.onepercent.app.data.repository.EntryRepository
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,11 +23,15 @@ import kotlinx.coroutines.launch
  * Loads the entry identified by [entryId], exposes its [title] and [body] as mutable flows,
  * and auto-saves changes to the repository after a 500 ms debounce whenever the content changes
  * post-load. [saveNow] provides an immediate (non-debounced) save for use as a safety net.
+ *
+ * Uses assisted injection so [entryId] (a runtime nav-arg) can be provided alongside the
+ * [entryRepository] that Hilt injects automatically.
  */
 @OptIn(FlowPreview::class)
-class EntryViewModel(
+@HiltViewModel(assistedFactory = EntryViewModel.Factory::class)
+class EntryViewModel @AssistedInject constructor(
     private val entryRepository: EntryRepository,
-    private val entryId: Long
+    @Assisted val entryId: Long
 ) : ViewModel() {
 
     private val _title = MutableStateFlow("")
@@ -71,12 +78,9 @@ class EntryViewModel(
         }
     }
 
-    class Factory(
-        private val entryRepository: EntryRepository,
-        private val entryId: Long
-    ) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            EntryViewModel(entryRepository, entryId) as T
+    /** Assisted factory — Hilt implements this to wire [entryId] at call-site. */
+    @AssistedFactory
+    interface Factory {
+        fun create(entryId: Long): EntryViewModel
     }
 }

@@ -1,7 +1,6 @@
 package com.onepercent.app.ui.index
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.onepercent.app.data.model.Entry
 import com.onepercent.app.data.model.Section
@@ -10,6 +9,7 @@ import com.onepercent.app.data.repository.SectionRepository
 import com.onepercent.app.data.repository.TaskRepository
 import com.onepercent.app.util.WeekCalculator
 import com.onepercent.app.util.WeekRange
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import javax.inject.Inject
 
 /**
  * A user-created section together with all the entries that belong to it.
@@ -55,7 +56,8 @@ data class IndexUiState(
  *
  * [currentWeeks] is computed once at construction time (no DB query needed).
  */
-class IndexViewModel(
+@HiltViewModel
+class IndexViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
     private val entryRepository: EntryRepository,
     private val sectionRepository: SectionRepository
@@ -141,15 +143,5 @@ class IndexViewModel(
      */
     suspend fun deleteSection(section: Section) {
         sectionRepository.deleteSection(section)
-    }
-
-    class Factory(
-        private val taskRepository: TaskRepository,
-        private val entryRepository: EntryRepository,
-        private val sectionRepository: SectionRepository
-    ) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            IndexViewModel(taskRepository, entryRepository, sectionRepository) as T
     }
 }
