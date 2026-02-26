@@ -133,14 +133,18 @@ sequenceDiagram
     User->>Screen: Tap FAB
     Screen->>Screen: showAddMenu = true (DropdownMenu visible)
     User->>Screen: Tap "New Entry"
-    Screen->>VM: createEntry(sectionId = null)
-    VM->>ERepo: addEntry(title = "", body = "", sectionId = null)
+    Screen->>Screen: showNewEntryDialog = true\n(AlertDialog with title field + section dropdown)
+    User->>Screen: (Optional) Enter title and/or pick section
+    User->>Screen: Tap "Create"
+    Screen->>VM: createEntry(title = "...", sectionId = id?)
+    VM->>ERepo: addEntry(title, body = "", sectionId)
     ERepo->>ERepo: createdAt = System.currentTimeMillis()
     ERepo->>DAO: insertEntry(entry)
     DAO->>DB: INSERT INTO entries ...
     DB-->>DAO: generated id (Long)
     ERepo-->>VM: entryId
     VM-->>Screen: entryId
+    Screen->>Screen: showNewEntryDialog = false
     Screen->>EntryScreen: onNavigateToEntry(entryId)
 ```
 

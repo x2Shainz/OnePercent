@@ -30,4 +30,7 @@
     <string name="write_something">Write something…</string>
     <string name="delete">Delete</string>
     <string name="navigate_back">Navigate back</string>
+    <string name="entry_title_hint">Entry title (optional)</string>
+    <string name="section_label">Section</string>
+    <string name="no_section">None (free-floating)</string>
 </resources>

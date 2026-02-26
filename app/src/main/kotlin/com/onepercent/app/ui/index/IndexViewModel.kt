@@ -121,11 +121,11 @@ class IndexViewModel @Inject constructor(
     // --- Screen actions ---
 
     /**
-     * Creates a new empty entry (optionally inside [sectionId]) and returns its generated ID.
-     * The caller should navigate to the Entry screen with the returned ID immediately after.
+     * Creates a new entry with an optional [title] and optional [sectionId], then returns its
+     * generated ID. The caller should navigate to the Entry screen with the returned ID.
      */
-    suspend fun createEntry(sectionId: Long? = null): Long =
-        entryRepository.addEntry(sectionId = sectionId)
+    suspend fun createEntry(title: String = "", sectionId: Long? = null): Long =
+        entryRepository.addEntry(title = title, sectionId = sectionId)
 
     /** Creates a new section with the given [name]. */
     suspend fun createSection(name: String) {

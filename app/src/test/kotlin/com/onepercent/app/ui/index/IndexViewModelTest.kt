@@ -72,13 +72,23 @@ class IndexViewModelTest {
     }
 
     // Exposes a MutableStateFlow for getAllEntries so tests can push entry lists.
+    // lastAddedTitle / lastAddedSectionId capture the args from the most recent addEntry call.
     private inner class FakeEntryRepository : EntryRepository {
         val entriesFlow = MutableStateFlow<List<Entry>>(emptyList())
+
+        var lastAddedTitle: String = ""
+            private set
+        var lastAddedSectionId: Long? = null
+            private set
 
         fun emitEntries(entries: List<Entry>) { entriesFlow.value = entries }
 
         override fun getAllEntries(): Flow<List<Entry>> = entriesFlow
-        override suspend fun addEntry(title: String, body: String, sectionId: Long?): Long = 0L
+        override suspend fun addEntry(title: String, body: String, sectionId: Long?): Long {
+            lastAddedTitle = title
+            lastAddedSectionId = sectionId
+            return 0L
+        }
         override suspend fun updateEntry(id: Long, title: String, body: String) {}
         override suspend fun deleteEntry(entry: Entry) {}
         override fun getEntryById(id: Long): Flow<Entry?> = flowOf(null)
@@ -224,6 +234,22 @@ class IndexViewModelTest {
         sectionRepo.emitSections(listOf(section))
         entryRepo.emitEntries(listOf(entry))
         assertTrue(vm.uiState.value.unassignedEntries.isEmpty())
+    }
+
+    // --- createEntry tests ---
+
+    @Test
+    fun createEntry_forwardsTitle() = runTest {
+        activateFlow()
+        vm.createEntry(title = "My Note", sectionId = null)
+        assertEquals("My Note", entryRepo.lastAddedTitle)
+    }
+
+    @Test
+    fun createEntry_forwardsSectionId() = runTest {
+        activateFlow()
+        vm.createEntry(title = "", sectionId = 7L)
+        assertEquals(7L, entryRepo.lastAddedSectionId)
     }
 
     @Test

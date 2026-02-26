@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,6 +23,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -93,6 +97,87 @@ fun IndexScreen(
     var showSectionDialog by rememberSaveable { mutableStateOf(false) }
     var sectionNameInput by rememberSaveable { mutableStateOf("") }
 
+    // New-entry dialog state
+    var showNewEntryDialog  by rememberSaveable { mutableStateOf(false) }
+    var newEntryTitle       by rememberSaveable { mutableStateOf("") }
+    var selectedSectionId   by rememberSaveable { mutableStateOf<Long?>(null) }
+    var sectionDropExpanded by remember        { mutableStateOf(false) }
+
+    // New-entry dialog: optional title + section picker dropdown.
+    if (showNewEntryDialog) {
+        AlertDialog(
+            onDismissRequest = { showNewEntryDialog = false },
+            title = { Text(stringResource(R.string.new_entry)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = newEntryTitle,
+                        onValueChange = { newEntryTitle = it },
+                        placeholder = { Text(stringResource(R.string.entry_title_hint)) },
+                        singleLine = true
+                    )
+                    ExposedDropdownMenuBox(
+                        expanded = sectionDropExpanded,
+                        onExpandedChange = { sectionDropExpanded = it }
+                    ) {
+                        OutlinedTextField(
+                            value = selectedSectionId
+                                ?.let { id -> uiState.userSections.find { it.section.id == id }?.section?.name }
+                                ?: stringResource(R.string.no_section),
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text(stringResource(R.string.section_label)) },
+                            trailingIcon = {
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = sectionDropExpanded)
+                            },
+                            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                        )
+                        ExposedDropdownMenu(
+                            expanded = sectionDropExpanded,
+                            onDismissRequest = { sectionDropExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.no_section)) },
+                                onClick = {
+                                    selectedSectionId = null
+                                    sectionDropExpanded = false
+                                }
+                            )
+                            uiState.userSections.forEach { sw ->
+                                DropdownMenuItem(
+                                    text = { Text(sw.section.name) },
+                                    onClick = {
+                                        selectedSectionId = sw.section.id
+                                        sectionDropExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            val id = viewModel.createEntry(
+                                title = newEntryTitle.trim(),
+                                sectionId = selectedSectionId
+                            )
+                            showNewEntryDialog = false
+                            onNavigateToEntry(id)
+                        }
+                    }
+                ) { Text(stringResource(R.string.create)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNewEntryDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
     // New-section dialog
     if (showSectionDialog) {
         AlertDialog(
@@ -151,10 +236,9 @@ fun IndexScreen(
                         text = { Text(stringResource(R.string.new_entry)) },
                         onClick = {
                             showAddMenu = false
-                            scope.launch {
-                                val id = viewModel.createEntry()
-                                onNavigateToEntry(id)
-                            }
+                            newEntryTitle = ""
+                            selectedSectionId = null
+                            showNewEntryDialog = true
                         }
                     )
                     DropdownMenuItem(
