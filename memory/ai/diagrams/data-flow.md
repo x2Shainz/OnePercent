@@ -93,25 +93,89 @@ sequenceDiagram
     participant Screen as IndexScreen
     participant VM as IndexViewModel
     participant WC as WeekCalculator
-    participant Repo as TaskRepositoryImpl
-    participant DAO as TaskDao
+    participant TRepo as TaskRepositoryImpl
+    participant ERepo as EntryRepositoryImpl
+    participant SRepo as SectionRepositoryImpl
+    participant DAO as TaskDao / EntryDao / SectionDao
     participant DB as Room / SQLite
 
-    Note over VM: On init, compute currentWeeks once\n(no DB query needed)
+    Note over VM: On init, compute currentWeeks once
     VM->>WC: fourWeekRanges(LocalDate.now())
     WC-->>VM: List<WeekRange> (4 items)
-    VM->>WC: currentWeekRange(today).sunday
-    WC-->>VM: currentWeekSunday (exclusive end for pastWeeks)
 
-    VM->>Repo: getEarliestDueDate(): Flow<Long?>
-    Repo->>DAO: getEarliestDueDate()
-    DAO->>DB: SELECT MIN(dueDate) FROM tasks
-    DB-->>DAO: Long? (null if no tasks)
-    DAO-->>VM: Flow emits Long?
-    VM->>VM: map { earliestMillis → pastWeekRanges(earliest, currentWeekSunday) }
+    Note over VM: combine() three flows reactively
+    VM->>TRepo: getEarliestDueDate(): Flow<Long?>
+    VM->>SRepo: getAllSections(): Flow<List<Section>>
+    VM->>ERepo: getAllEntries(): Flow<List<Entry>>
+    DAO->>DB: SELECT MIN(dueDate), SELECT sections, SELECT entries
+    DB-->>VM: flows emit
+
+    VM->>VM: Build pastWeeks from earliestDueDate
+    VM->>VM: Group entries by sectionId → SectionWithEntries
+    VM->>VM: Filter null sectionId → unassignedEntries
     VM->>VM: stateIn → StateFlow<IndexUiState>
-    VM-->>Screen: uiState (pastWeeks + currentWeeks)
-    Screen->>Screen: Collapsible sections with AnimatedVisibility
+    VM-->>Screen: uiState (pastWeeks + currentWeeks + userSections + unassignedEntries)
+    Screen->>Screen: Collapsible sections with AnimatedVisibility\nSwipeToDismissBox on entries/sections
+```
+
+## Creating an Entry
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Screen as IndexScreen
+    participant VM as IndexViewModel
+    participant ERepo as EntryRepositoryImpl
+    participant DAO as EntryDao
+    participant DB as Room / SQLite
+    participant EntryScreen
+
+    User->>Screen: Tap FAB
+    Screen->>Screen: showAddMenu = true (DropdownMenu visible)
+    User->>Screen: Tap "New Entry"
+    Screen->>VM: createEntry(sectionId = null)
+    VM->>ERepo: addEntry(title = "", body = "", sectionId = null)
+    ERepo->>ERepo: createdAt = System.currentTimeMillis()
+    ERepo->>DAO: insertEntry(entry)
+    DAO->>DB: INSERT INTO entries ...
+    DB-->>DAO: generated id (Long)
+    ERepo-->>VM: entryId
+    VM-->>Screen: entryId
+    Screen->>EntryScreen: onNavigateToEntry(entryId)
+```
+
+## Editing an Entry (auto-save)
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Screen as EntryScreen
+    participant VM as EntryViewModel
+    participant ERepo as EntryRepositoryImpl
+    participant DAO as EntryDao
+    participant DB as Room / SQLite
+
+    Note over VM: On init — load entry once
+    VM->>ERepo: getEntryById(entryId): Flow<Entry?>
+    ERepo->>DAO: SELECT * FROM entries WHERE id = ?
+    DAO->>DB: query
+    DB-->>VM: Entry emitted
+    VM->>VM: _title.value = entry.title\n_body.value = entry.body\nloaded = true
+    Note over VM: Start auto-save: combine(_title, _body).drop(1).debounce(500ms)
+
+    User->>Screen: Edit title or body
+    Screen->>VM: onTitleChange(value) / onBodyChange(value)
+    VM->>VM: _title / _body updated immediately
+    Note over VM: 500ms debounce elapses
+    VM->>ERepo: updateEntry(id, title, body)
+    ERepo->>DAO: UPDATE entries SET title=?, body=? WHERE id=?
+    DAO->>DB: UPDATE
+    DB-->>DAO: success
+
+    User->>Screen: Tap back arrow
+    Screen->>VM: saveNow() (DisposableEffect.onDispose)
+    VM->>ERepo: updateEntry(id, title, body) — immediate, no debounce
+    Screen->>Screen: navController.popBackStack()
 ```
 
 ## Loading the Future Log (FutureLogScreen)

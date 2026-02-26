@@ -1,7 +1,11 @@
 package com.onepercent.app.ui.index
 
 import com.onepercent.app.MainDispatcherRule
+import com.onepercent.app.data.model.Entry
+import com.onepercent.app.data.model.Section
 import com.onepercent.app.data.model.Task
+import com.onepercent.app.data.repository.EntryRepository
+import com.onepercent.app.data.repository.SectionRepository
 import com.onepercent.app.data.repository.TaskRepository
 import com.onepercent.app.util.WeekCalculator
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -27,13 +31,17 @@ class IndexViewModelTest {
 
     private val zone = ZoneId.systemDefault()
 
-    private lateinit var repo: FakeTaskRepository
+    private lateinit var taskRepo: FakeTaskRepository
+    private lateinit var entryRepo: FakeEntryRepository
+    private lateinit var sectionRepo: FakeSectionRepository
     private lateinit var vm: IndexViewModel
 
     @Before
     fun setup() {
-        repo = FakeTaskRepository()
-        vm = IndexViewModel(repo)
+        taskRepo = FakeTaskRepository()
+        entryRepo = FakeEntryRepository()
+        sectionRepo = FakeSectionRepository()
+        vm = IndexViewModel(taskRepo, entryRepo, sectionRepo)
     }
 
     private fun millis(date: LocalDate): Long =
@@ -61,6 +69,30 @@ class IndexViewModelTest {
         override fun getTasksForDay(startOfDayMillis: Long, endOfDayMillis: Long): Flow<List<Task>> = flowOf(emptyList())
         override fun getTasksForWeek(startOfWeekMillis: Long, endOfWeekMillis: Long): Flow<List<Task>> = flowOf(emptyList())
         override fun getTasksAfter(startMillis: Long): Flow<List<Task>> = flowOf(emptyList())
+    }
+
+    // Exposes a MutableStateFlow for getAllEntries so tests can push entry lists.
+    private inner class FakeEntryRepository : EntryRepository {
+        val entriesFlow = MutableStateFlow<List<Entry>>(emptyList())
+
+        fun emitEntries(entries: List<Entry>) { entriesFlow.value = entries }
+
+        override fun getAllEntries(): Flow<List<Entry>> = entriesFlow
+        override suspend fun addEntry(title: String, body: String, sectionId: Long?): Long = 0L
+        override suspend fun updateEntry(id: Long, title: String, body: String) {}
+        override suspend fun deleteEntry(entry: Entry) {}
+        override fun getEntryById(id: Long): Flow<Entry?> = flowOf(null)
+    }
+
+    // Exposes a MutableStateFlow for getAllSections so tests can push section lists.
+    private inner class FakeSectionRepository : SectionRepository {
+        val sectionsFlow = MutableStateFlow<List<Section>>(emptyList())
+
+        fun emitSections(sections: List<Section>) { sectionsFlow.value = sections }
+
+        override fun getAllSections(): Flow<List<Section>> = sectionsFlow
+        override suspend fun addSection(name: String): Long = 0L
+        override suspend fun deleteSection(section: Section) {}
     }
 
     // --- currentWeeks tests ---
@@ -94,7 +126,7 @@ class IndexViewModelTest {
     fun pastWeeks_emptyWhenNoTasksExist() = runTest {
         // If getEarliestDueDate() emits null, there are no tasks at all → no past weeks.
         activateFlow()
-        repo.emitEarliestDueDate(null)
+        taskRepo.emitEarliestDueDate(null)
         assertTrue(vm.uiState.value.pastWeeks.isEmpty())
     }
 
@@ -103,7 +135,7 @@ class IndexViewModelTest {
         // A task due today falls within the current 4-week window, so Past Weeks stays empty.
         activateFlow()
         val today = LocalDate.now(zone)
-        repo.emitEarliestDueDate(millis(today))
+        taskRepo.emitEarliestDueDate(millis(today))
         assertTrue(vm.uiState.value.pastWeeks.isEmpty())
     }
 
@@ -112,7 +144,7 @@ class IndexViewModelTest {
         // A task due one week before the current week's Sunday → exactly 1 past-week range.
         activateFlow()
         val lastWeek = WeekCalculator.currentWeekRange(LocalDate.now(zone)).sunday.minusWeeks(1)
-        repo.emitEarliestDueDate(millis(lastWeek))
+        taskRepo.emitEarliestDueDate(millis(lastWeek))
         assertEquals(1, vm.uiState.value.pastWeeks.size)
     }
 
@@ -121,7 +153,7 @@ class IndexViewModelTest {
         // A task 3 weeks before the current Sunday → exactly 3 past-week ranges.
         activateFlow()
         val threeWeeksBack = WeekCalculator.currentWeekRange(LocalDate.now(zone)).sunday.minusWeeks(3)
-        repo.emitEarliestDueDate(millis(threeWeeksBack))
+        taskRepo.emitEarliestDueDate(millis(threeWeeksBack))
         assertEquals(3, vm.uiState.value.pastWeeks.size)
     }
 
@@ -129,11 +161,80 @@ class IndexViewModelTest {
     fun pastWeeks_updatesWhenRepoEmitsNewValue() = runTest {
         // Verifies that IndexViewModel reacts to new emissions from getEarliestDueDate().
         activateFlow()
-        repo.emitEarliestDueDate(null)
+        taskRepo.emitEarliestDueDate(null)
         assertTrue(vm.uiState.value.pastWeeks.isEmpty())
 
         val lastWeek = WeekCalculator.currentWeekRange(LocalDate.now(zone)).sunday.minusWeeks(1)
-        repo.emitEarliestDueDate(millis(lastWeek))
+        taskRepo.emitEarliestDueDate(millis(lastWeek))
         assertEquals(1, vm.uiState.value.pastWeeks.size)
+    }
+
+    // --- userSections tests ---
+
+    @Test
+    fun userSections_emptyWhenNoSectionsExist() = runTest {
+        // When getAllSections() emits an empty list, userSections must be empty.
+        activateFlow()
+        sectionRepo.emitSections(emptyList())
+        assertTrue(vm.uiState.value.userSections.isEmpty())
+    }
+
+    @Test
+    fun userSections_populatedAfterSectionEmission() = runTest {
+        // Emitting a section must cause it to appear in userSections.
+        activateFlow()
+        val section = Section(id = 1, name = "Work", createdAt = 0L)
+        sectionRepo.emitSections(listOf(section))
+        assertEquals(1, vm.uiState.value.userSections.size)
+        assertEquals("Work", vm.uiState.value.userSections[0].section.name)
+    }
+
+    @Test
+    fun userSections_entriesGroupedCorrectly() = runTest {
+        // An entry with sectionId = 1 must appear inside the section with id = 1, not unassigned.
+        activateFlow()
+        val section = Section(id = 1, name = "Work", createdAt = 0L)
+        val entry = Entry(id = 10, title = "Note", body = "", sectionId = 1L, createdAt = 0L)
+        sectionRepo.emitSections(listOf(section))
+        entryRepo.emitEntries(listOf(entry))
+        val swe = vm.uiState.value.userSections[0]
+        assertEquals(1, swe.entries.size)
+        assertEquals("Note", swe.entries[0].title)
+        assertTrue(vm.uiState.value.unassignedEntries.isEmpty())
+    }
+
+    // --- unassignedEntries tests ---
+
+    @Test
+    fun unassignedEntries_appearsWhenEntryHasNullSectionId() = runTest {
+        // An entry with sectionId = null must appear in unassignedEntries, not inside any section.
+        activateFlow()
+        val entry = Entry(id = 1, title = "Free note", body = "", sectionId = null, createdAt = 0L)
+        entryRepo.emitEntries(listOf(entry))
+        assertEquals(1, vm.uiState.value.unassignedEntries.size)
+        assertEquals("Free note", vm.uiState.value.unassignedEntries[0].title)
+    }
+
+    @Test
+    fun unassignedEntries_emptyWhenAllEntriesHaveSections() = runTest {
+        // All entries with a non-null sectionId must be in sections, leaving unassigned empty.
+        activateFlow()
+        val section = Section(id = 5, name = "Misc", createdAt = 0L)
+        val entry = Entry(id = 1, title = "Grouped", body = "", sectionId = 5L, createdAt = 0L)
+        sectionRepo.emitSections(listOf(section))
+        entryRepo.emitEntries(listOf(entry))
+        assertTrue(vm.uiState.value.unassignedEntries.isEmpty())
+    }
+
+    @Test
+    fun reactsToNewEntryEmission() = runTest {
+        // Emitting a new entry list must update the state without requiring a restart.
+        activateFlow()
+        entryRepo.emitEntries(emptyList())
+        assertTrue(vm.uiState.value.unassignedEntries.isEmpty())
+
+        val entry = Entry(id = 1, title = "New", body = "", sectionId = null, createdAt = 0L)
+        entryRepo.emitEntries(listOf(entry))
+        assertEquals(1, vm.uiState.value.unassignedEntries.size)
     }
 }

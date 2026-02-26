@@ -1,0 +1,27 @@
+package com.onepercent.app.data.repository
+
+import com.onepercent.app.data.db.EntryDao
+import com.onepercent.app.data.model.Entry
+import kotlinx.coroutines.flow.Flow
+
+class EntryRepositoryImpl(private val entryDao: EntryDao) : EntryRepository {
+
+    override suspend fun addEntry(title: String, body: String, sectionId: Long?): Long =
+        entryDao.insertEntry(
+            Entry(
+                title = title,
+                body = body,
+                sectionId = sectionId,
+                createdAt = System.currentTimeMillis()
+            )
+        )
+
+    override suspend fun updateEntry(id: Long, title: String, body: String) =
+        entryDao.updateEntry(id, title, body)
+
+    override suspend fun deleteEntry(entry: Entry) = entryDao.deleteEntry(entry)
+
+    override fun getEntryById(id: Long): Flow<Entry?> = entryDao.getEntryById(id)
+
+    override fun getAllEntries(): Flow<List<Entry>> = entryDao.getAllEntries()
+}

@@ -16,6 +16,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.onepercent.app.ui.addtask.AddTaskScreen
+import com.onepercent.app.ui.entry.EntryScreen
 import com.onepercent.app.ui.futurelog.FutureLogScreen
 import com.onepercent.app.ui.index.IndexScreen
 import com.onepercent.app.ui.months.NextMonthsScreen
@@ -35,8 +36,10 @@ object Routes {
     const val FUTURE_LOG    = "future_log"
     const val PAST_MONTHS   = "past_months"
     const val NEXT_MONTHS   = "next_months"
+    const val ENTRY         = "entry/{entryId}"
 
     fun weeklyPager(weekStartEpochDay: Long) = "week/$weekStartEpochDay"
+    fun entry(entryId: Long) = "entry/$entryId"
 }
 
 @Preview
@@ -108,6 +111,9 @@ fun OnePercentNavGraph(
                     },
                     onNavigateToNextMonths = {
                         navController.navigate(Routes.NEXT_MONTHS) { launchSingleTop = true }
+                    },
+                    onNavigateToEntry = { entryId ->
+                        navController.navigate(Routes.entry(entryId))
                     }
                 )
             }
@@ -119,6 +125,16 @@ fun OnePercentNavGraph(
             }
             composable(Routes.NEXT_MONTHS) {
                 NextMonthsScreen(onOpenDrawer = { openDrawer() })
+            }
+            composable(
+                route = Routes.ENTRY,
+                arguments = listOf(navArgument("entryId") { type = NavType.LongType })
+            ) { backStackEntry ->
+                val entryId = backStackEntry.arguments!!.getLong("entryId")
+                EntryScreen(
+                    entryId = entryId,
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
             composable(
                 route = Routes.WEEKLY_PAGER,

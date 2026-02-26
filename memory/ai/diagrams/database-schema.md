@@ -1,6 +1,6 @@
 # Database Schema
 
-Room database: `onepercent.db` — version 1
+Room database: `onepercent.db` — version 2
 
 ```mermaid
 erDiagram
@@ -9,11 +9,35 @@ erDiagram
         TEXT    name   "task display name"
         INTEGER dueDate "epoch milliseconds (Long)"
     }
+
+    SECTIONS {
+        INTEGER id        PK "autoGenerate = true"
+        TEXT    name      "display name for the section header"
+        INTEGER createdAt "epoch milliseconds — used for ascending ordering"
+    }
+
+    ENTRIES {
+        INTEGER id        PK "autoGenerate = true"
+        TEXT    title     "headline shown on the Index screen"
+        TEXT    body      "full editable content on the Entry screen"
+        INTEGER sectionId "FK to SECTIONS.id — nullable (free-floating if null)"
+        INTEGER createdAt "epoch milliseconds — used for ascending ordering"
+    }
+
+    SECTIONS ||--o{ ENTRIES : "groups (nullable)"
 ```
+
+## Migration History
+
+| Version | Change |
+|---------|--------|
+| v1 | `tasks` table |
+| v2 | `sections` and `entries` tables added (`Migration(1, 2)` in `AppDatabase.kt`) |
 
 ## Notes
 
 - `dueDate` is stored as epoch milliseconds (Long / INTEGER in SQLite).
 - The value represents **local-timezone midnight** of the chosen date, computed in `AddTaskViewModel.saveTask()` via `LocalDate.atStartOfDay(ZoneId.systemDefault())`.
 - Queries use a `[startOfDayMillis, endOfDayMillis)` range to match tasks to a calendar day, avoiding timezone drift issues.
-- When adding new entities, increment `@Database(version = N)` in `AppDatabase.kt` and provide a `Migration`.
+- `ENTRIES.sectionId` is nullable — no Room `ForeignKey` constraint is used. Cascade (SET NULL on section delete) is handled in `SectionRepositoryImpl.deleteSection()` as a two-step transaction.
+- `createdAt` is set to `System.currentTimeMillis()` in the repository layer on insert.

@@ -24,8 +24,12 @@ stateDiagram-v2
     IndexScreen --> FutureLogScreen : Tap "Future Log"
     IndexScreen --> PastMonthsScreen : Tap "Past Months"\n(placeholder)
     IndexScreen --> NextMonthsScreen : Tap "Next 12 Months"\n(placeholder)
+    IndexScreen --> EntryScreen : Tap entry row
+    IndexScreen --> EntryScreen : Tap FAB → New Entry\n(auto-creates empty entry)
 
     WeeklyPagerScreen --> AddTaskScreen : Tap FAB (+)
+
+    EntryScreen --> IndexScreen : Tap back arrow\n(popBackStack + saveNow)
 ```
 
 ## Notes
@@ -46,7 +50,9 @@ classDiagram
         +FUTURE_LOG = "future_log"
         +PAST_MONTHS = "past_months"
         +NEXT_MONTHS = "next_months"
+        +ENTRY = "entry/{entryId}"
         +weeklyPager(epochDay Long) String
+        +entry(entryId Long) String
     }
 ```
 
@@ -60,3 +66,11 @@ classDiagram
 - **Current Weeks** — expanded by default; always shows 4 week links
 - **Future Log** — single non-collapsible link
 - **Monthly Logs** — collapsed by default; contains Past Months and Next 12 Months stubs
+- **User Sections** — collapsible; each shows its entries; swipe-left on section deletes it (entries become free-floating)
+- **Free-floating Entries** — listed below user sections; swipe-left deletes; tap navigates to EntryScreen
+
+## EntryScreen
+- Accessed from IndexScreen (existing entries) or auto-created via FAB → "New Entry"
+- Route arg: `entryId: Long`
+- No drawer access; back arrow returns to previous screen
+- Auto-saves on change (500ms debounce); `saveNow()` called on `DisposableEffect.onDispose` as safety net

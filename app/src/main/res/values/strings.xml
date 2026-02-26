@@ -20,4 +20,14 @@
     <string name="next_months">Next 12 Months</string>
     <string name="no_future_tasks">No upcoming tasks.</string>
     <string name="coming_soon">Coming soon</string>
+    <string name="add">Add</string>
+    <string name="new_entry">New Entry</string>
+    <string name="new_section">New Section</string>
+    <string name="section_name_hint">Section name</string>
+    <string name="create">Create</string>
+    <string name="cancel">Cancel</string>
+    <string name="untitled">Untitled</string>
+    <string name="write_something">Write something…</string>
+    <string name="delete">Delete</string>
+    <string name="navigate_back">Navigate back</string>
 </resources>

@@ -2,6 +2,10 @@ package com.onepercent.app
 
 import android.app.Application
 import com.onepercent.app.data.db.AppDatabase
+import com.onepercent.app.data.repository.EntryRepository
+import com.onepercent.app.data.repository.EntryRepositoryImpl
+import com.onepercent.app.data.repository.SectionRepository
+import com.onepercent.app.data.repository.SectionRepositoryImpl
 import com.onepercent.app.data.repository.TaskRepository
 import com.onepercent.app.data.repository.TaskRepositoryImpl
 
@@ -18,5 +22,13 @@ class OnePercentApp : Application() {
 
     val taskRepository: TaskRepository by lazy {
         TaskRepositoryImpl(database.taskDao())
+    }
+
+    val entryRepository: EntryRepository by lazy {
+        EntryRepositoryImpl(database.entryDao())
+    }
+
+    val sectionRepository: SectionRepository by lazy {
+        SectionRepositoryImpl(database.sectionDao(), database.entryDao())
     }
 }
