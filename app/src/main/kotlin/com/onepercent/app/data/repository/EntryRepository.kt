@@ -21,4 +21,10 @@ interface EntryRepository {
 
     /** Reassigns the entry with [entryId] to [newSectionId] (null = free-floating). */
     suspend fun moveEntry(entryId: Long, newSectionId: Long?)
+
+    /**
+     * Reactively emits entries whose title or body contains [query].
+     * Results are ordered newest-first and update as the DB changes.
+     */
+    fun searchEntries(query: String): Flow<List<Entry>>
 }

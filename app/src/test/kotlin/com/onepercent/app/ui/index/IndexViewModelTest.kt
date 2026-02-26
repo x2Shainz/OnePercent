@@ -10,6 +10,7 @@ import com.onepercent.app.data.repository.TaskRepository
 import com.onepercent.app.util.WeekCalculator
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -59,6 +60,13 @@ class IndexViewModelTest {
         }
     }
 
+    /** Subscribes to [vm]'s searchResults so its WhileSubscribed upstream runs. */
+    private fun TestScope.activateSearchFlow() {
+        backgroundScope.launch(mainDispatcherRule.testDispatcher) {
+            vm.searchResults.collect {}
+        }
+    }
+
     // Exposes a MutableStateFlow for getEarliestDueDate so tests can push new values
     // and verify that IndexViewModel reacts correctly.
     private inner class FakeTaskRepository : TaskRepository {
@@ -104,6 +112,16 @@ class IndexViewModelTest {
             moveCallCount++
             lastMoveEntryId = entryId
             lastMoveSectionId = newSectionId
+        }
+        val searchResultsFlow = MutableStateFlow<List<Entry>>(emptyList())
+        var lastSearchQuery: String? = null
+            private set
+
+        fun emitSearchResults(entries: List<Entry>) { searchResultsFlow.value = entries }
+
+        override fun searchEntries(query: String): Flow<List<Entry>> {
+            lastSearchQuery = query
+            return searchResultsFlow
         }
         override fun getEntryById(id: Long): Flow<Entry?> = flowOf(null)
     }
@@ -264,6 +282,40 @@ class IndexViewModelTest {
         activateFlow()
         vm.createEntry(title = "", sectionId = 7L)
         assertEquals(7L, entryRepo.lastAddedSectionId)
+    }
+
+    // --- search tests ---
+
+    @Test
+    fun searchQuery_initiallyEmpty() {
+        assertEquals("", vm.searchQuery.value)
+    }
+
+    @Test
+    fun onSearchQueryChange_updatesQuery() {
+        vm.onSearchQueryChange("hello")
+        assertEquals("hello", vm.searchQuery.value)
+    }
+
+    @Test
+    fun searchResults_emptyWhenQueryIsBlank() = runTest {
+        activateSearchFlow()
+        vm.onSearchQueryChange("")
+        advanceTimeBy(400)
+        advanceUntilIdle()
+        assertTrue(vm.searchResults.value.isEmpty())
+    }
+
+    @Test
+    fun searchResults_populatedAfterQueryDebounce() = runTest {
+        activateSearchFlow()
+        val entry = Entry(id = 1, title = "Test Note", body = "", sectionId = null, createdAt = 0L)
+        entryRepo.emitSearchResults(listOf(entry))
+        vm.onSearchQueryChange("test")
+        advanceTimeBy(301)
+        advanceUntilIdle()
+        assertEquals(1, vm.searchResults.value.size)
+        assertEquals("Test Note", vm.searchResults.value[0].title)
     }
 
     // --- moveEntry tests ---

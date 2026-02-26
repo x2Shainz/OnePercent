@@ -54,4 +54,15 @@ interface EntryDao {
     /** Returns all entries with no section assignment, ordered by creation time. */
     @Query("SELECT * FROM entries WHERE sectionId IS NULL ORDER BY createdAt ASC")
     fun getUnassignedEntries(): Flow<List<Entry>>
+
+    /**
+     * Returns all entries whose [Entry.title] or [Entry.body] contains [query] (case-insensitive),
+     * ordered newest first. Results update reactively as the DB changes.
+     */
+    @Query("""
+        SELECT * FROM entries
+        WHERE title LIKE '%' || :query || '%' OR body LIKE '%' || :query || '%'
+        ORDER BY createdAt DESC
+    """)
+    fun searchEntries(query: String): Flow<List<Entry>>
 }

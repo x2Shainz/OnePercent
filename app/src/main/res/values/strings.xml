@@ -35,4 +35,7 @@
     <string name="no_section">None (free-floating)</string>
     <string name="move_to">Move to…</string>
     <string name="free_floating">Free-floating</string>
+    <string name="search_entries_hint">Search entries…</string>
+    <string name="search_hint_start_typing">Start typing to search</string>
+    <string name="search_no_results">No entries found</string>
 </resources>

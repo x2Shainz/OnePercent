@@ -14,13 +14,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SearchBar
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -98,6 +101,11 @@ fun IndexScreen(
     var showAddMenu by rememberSaveable { mutableStateOf(false) }
     var showSectionDialog by rememberSaveable { mutableStateOf(false) }
     var sectionNameInput by rememberSaveable { mutableStateOf("") }
+
+    // Search state
+    var searchActive by rememberSaveable { mutableStateOf(false) }
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
 
     // Move-entry dialog state (not rememberSaveable — Entry is not Parcelable; dialog closes on rotation)
     var movingEntry by remember { mutableStateOf<Entry?>(null) }
@@ -252,17 +260,71 @@ fun IndexScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.index)) },
-                navigationIcon = {
-                    IconButton(onClick = onOpenDrawer) {
-                        Icon(
-                            Icons.Filled.Menu,
-                            contentDescription = stringResource(R.string.open_drawer)
+            if (searchActive) {
+                SearchBar(
+                    query = searchQuery,
+                    onQueryChange = viewModel::onSearchQueryChange,
+                    onSearch = {},
+                    active = true,
+                    onActiveChange = { if (!it) { searchActive = false; viewModel.onSearchQueryChange("") } },
+                    leadingIcon = {
+                        IconButton(onClick = { searchActive = false; viewModel.onSearchQueryChange("") }) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.navigate_back)
+                            )
+                        }
+                    },
+                    placeholder = { Text(stringResource(R.string.search_entries_hint)) }
+                ) {
+                    if (searchQuery.isBlank()) {
+                        Text(
+                            text = stringResource(R.string.search_hint_start_typing),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(16.dp)
                         )
+                    } else if (searchResults.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.search_no_results),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    } else {
+                        searchResults.forEach { entry ->
+                            NavigationDrawerItem(
+                                label = {
+                                    Text(entry.title.ifBlank { stringResource(R.string.untitled) })
+                                },
+                                selected = false,
+                                onClick = { onNavigateToEntry(entry.id) },
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+                        }
                     }
                 }
-            )
+            } else {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.index)) },
+                    navigationIcon = {
+                        IconButton(onClick = onOpenDrawer) {
+                            Icon(
+                                Icons.Filled.Menu,
+                                contentDescription = stringResource(R.string.open_drawer)
+                            )
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { searchActive = true }) {
+                            Icon(
+                                Icons.Filled.Search,
+                                contentDescription = stringResource(R.string.search_entries_hint)
+                            )
+                        }
+                    }
+                )
+            }
         },
         floatingActionButton = {
             Box {

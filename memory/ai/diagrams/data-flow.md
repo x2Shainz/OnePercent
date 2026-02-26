@@ -148,6 +148,38 @@ sequenceDiagram
     Screen->>EntryScreen: onNavigateToEntry(entryId)
 ```
 
+## Searching Entries (IndexScreen)
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Screen as IndexScreen
+    participant VM as IndexViewModel
+    participant ERepo as EntryRepositoryImpl
+    participant DAO as EntryDao
+    participant DB as Room / SQLite
+
+    User->>Screen: Tap search icon (TopAppBar)
+    Screen->>Screen: searchActive = true\n(SearchBar replaces TopAppBar)
+    User->>Screen: Type query character by character
+    Screen->>VM: onSearchQueryChange(query)
+    VM->>VM: _searchQuery.value = query
+    Note over VM: debounce(300ms) — waits for typing to pause
+    Note over VM: filter { it.isNotBlank() } — ignores empty query
+    VM->>ERepo: searchEntries(query): Flow<List<Entry>>
+    ERepo->>DAO: searchEntries(query)
+    DAO->>DB: SELECT * FROM entries WHERE title LIKE '%query%'\nOR body LIKE '%query%' ORDER BY createdAt DESC
+    DB-->>DAO: List<Entry>
+    DAO-->>VM: Flow emits results
+    VM->>VM: flatMapLatest cancels previous flow\nstateIn → searchResults StateFlow
+    VM-->>Screen: searchResults (live list)
+    Screen->>Screen: Render result rows or empty-state text
+
+    User->>Screen: Tap back arrow or dismiss
+    Screen->>VM: onSearchQueryChange("")
+    Screen->>Screen: searchActive = false\n(TopAppBar restored)
+```
+
 ## Moving an Entry to a Different Section
 
 ```mermaid

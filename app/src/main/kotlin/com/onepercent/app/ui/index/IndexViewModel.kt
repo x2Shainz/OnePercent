@@ -10,9 +10,14 @@ import com.onepercent.app.data.repository.TaskRepository
 import com.onepercent.app.util.WeekCalculator
 import com.onepercent.app.util.WeekRange
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -56,6 +61,7 @@ data class IndexUiState(
  *
  * [currentWeeks] is computed once at construction time (no DB query needed).
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class IndexViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
@@ -84,6 +90,27 @@ class IndexViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = IndexUiState(currentWeeks = currentWeeks)
     )
+
+    // --- Search state ---
+
+    private val _searchQuery = MutableStateFlow("")
+
+    /** The current search query string, updated immediately on every keystroke. */
+    val searchQuery: StateFlow<String> = _searchQuery
+
+    /**
+     * Live search results for [searchQuery]. Debounced 300ms to avoid issuing a DB query on
+     * every keystroke. Empty when the query is blank (the [filter] short-circuits upstream).
+     * Uses [flatMapLatest] so a new query cancels the previous DB flow automatically.
+     */
+    val searchResults: StateFlow<List<Entry>> = _searchQuery
+        .debounce(300)
+        .filter { it.isNotBlank() }
+        .flatMapLatest { query -> entryRepository.searchEntries(query) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Updates the live search query; triggers a new DB search after the 300ms debounce. */
+    fun onSearchQueryChange(query: String) { _searchQuery.value = query }
 
     private fun buildUiState(
         earliestMillis: Long?,

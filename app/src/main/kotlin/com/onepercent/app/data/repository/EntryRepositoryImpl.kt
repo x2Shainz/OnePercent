@@ -27,4 +27,7 @@ class EntryRepositoryImpl(private val entryDao: EntryDao) : EntryRepository {
 
     override suspend fun moveEntry(entryId: Long, newSectionId: Long?) =
         entryDao.updateSection(entryId, newSectionId)
+
+    override fun searchEntries(query: String): Flow<List<Entry>> =
+        entryDao.searchEntries(query)
 }
