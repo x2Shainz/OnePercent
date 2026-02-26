@@ -33,4 +33,6 @@
     <string name="entry_title_hint">Entry title (optional)</string>
     <string name="section_label">Section</string>
     <string name="no_section">None (free-floating)</string>
+    <string name="move_to">Move to…</string>
+    <string name="free_floating">Free-floating</string>
 </resources>

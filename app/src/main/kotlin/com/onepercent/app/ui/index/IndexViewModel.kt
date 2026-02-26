@@ -132,6 +132,15 @@ class IndexViewModel @Inject constructor(
         sectionRepository.addSection(name)
     }
 
+    /**
+     * Reassigns the entry with [entryId] to [newSectionId] (null = free-floating).
+     * Fired from the section-picker dialog; the existing [combine] flow automatically
+     * re-emits the updated groupings, so no manual state update is needed.
+     */
+    fun moveEntry(entryId: Long, newSectionId: Long?) {
+        viewModelScope.launch { entryRepository.moveEntry(entryId, newSectionId) }
+    }
+
     /** Permanently deletes [entry]. */
     suspend fun deleteEntry(entry: Entry) {
         entryRepository.deleteEntry(entry)

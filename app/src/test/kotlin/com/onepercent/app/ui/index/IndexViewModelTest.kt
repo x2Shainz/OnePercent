@@ -10,12 +10,14 @@ import com.onepercent.app.data.repository.TaskRepository
 import com.onepercent.app.util.WeekCalculator
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -91,6 +93,18 @@ class IndexViewModelTest {
         }
         override suspend fun updateEntry(id: Long, title: String, body: String) {}
         override suspend fun deleteEntry(entry: Entry) {}
+        var moveCallCount: Int = 0
+            private set
+        var lastMoveEntryId: Long? = null
+            private set
+        var lastMoveSectionId: Long? = null
+            private set
+
+        override suspend fun moveEntry(entryId: Long, newSectionId: Long?) {
+            moveCallCount++
+            lastMoveEntryId = entryId
+            lastMoveSectionId = newSectionId
+        }
         override fun getEntryById(id: Long): Flow<Entry?> = flowOf(null)
     }
 
@@ -250,6 +264,26 @@ class IndexViewModelTest {
         activateFlow()
         vm.createEntry(title = "", sectionId = 7L)
         assertEquals(7L, entryRepo.lastAddedSectionId)
+    }
+
+    // --- moveEntry tests ---
+
+    @Test
+    fun moveEntry_callsRepositoryWithCorrectArgs() = runTest {
+        activateFlow()
+        vm.moveEntry(entryId = 42L, newSectionId = 3L)
+        advanceUntilIdle()
+        assertEquals(42L, entryRepo.lastMoveEntryId)
+        assertEquals(3L, entryRepo.lastMoveSectionId)
+    }
+
+    @Test
+    fun moveEntry_toNull_makesEntryFreeFloating() = runTest {
+        activateFlow()
+        vm.moveEntry(entryId = 5L, newSectionId = null)
+        advanceUntilIdle()
+        assertEquals(1, entryRepo.moveCallCount)
+        assertNull(entryRepo.lastMoveSectionId)
     }
 
     @Test

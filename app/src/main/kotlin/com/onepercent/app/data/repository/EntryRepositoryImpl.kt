@@ -24,4 +24,7 @@ class EntryRepositoryImpl(private val entryDao: EntryDao) : EntryRepository {
     override fun getEntryById(id: Long): Flow<Entry?> = entryDao.getEntryById(id)
 
     override fun getAllEntries(): Flow<List<Entry>> = entryDao.getAllEntries()
+
+    override suspend fun moveEntry(entryId: Long, newSectionId: Long?) =
+        entryDao.updateSection(entryId, newSectionId)
 }

@@ -148,6 +148,30 @@ sequenceDiagram
     Screen->>EntryScreen: onNavigateToEntry(entryId)
 ```
 
+## Moving an Entry to a Different Section
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Screen as IndexScreen
+    participant VM as IndexViewModel
+    participant ERepo as EntryRepositoryImpl
+    participant DAO as EntryDao
+    participant DB as Room / SQLite
+
+    User->>Screen: Tap "⋮" on an entry row
+    Screen->>Screen: movingEntry = entry\n(AlertDialog opens)
+    User->>Screen: Select destination section (or Free-floating)
+    Screen->>VM: moveEntry(entryId, newSectionId)
+    Note over VM: viewModelScope.launch fires\n(non-suspending call site)
+    VM->>ERepo: moveEntry(entryId, newSectionId)
+    ERepo->>DAO: updateSection(entryId, newSectionId)
+    DAO->>DB: UPDATE entries SET sectionId = ? WHERE id = ?
+    DB-->>DAO: success
+    Screen->>Screen: movingEntry = null (dialog closes)
+    Note over VM: combine() re-emits updated groupings\nautomatically — no manual state update needed
+```
+
 ## Editing an Entry (auto-save)
 
 ```mermaid

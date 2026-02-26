@@ -19,6 +19,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -97,11 +99,50 @@ fun IndexScreen(
     var showSectionDialog by rememberSaveable { mutableStateOf(false) }
     var sectionNameInput by rememberSaveable { mutableStateOf("") }
 
+    // Move-entry dialog state (not rememberSaveable — Entry is not Parcelable; dialog closes on rotation)
+    var movingEntry by remember { mutableStateOf<Entry?>(null) }
+
     // New-entry dialog state
     var showNewEntryDialog  by rememberSaveable { mutableStateOf(false) }
     var newEntryTitle       by rememberSaveable { mutableStateOf("") }
     var selectedSectionId   by rememberSaveable { mutableStateOf<Long?>(null) }
     var sectionDropExpanded by remember        { mutableStateOf(false) }
+
+    // Move-entry dialog: radio-button list of all sections + free-floating option.
+    movingEntry?.let { entry ->
+        AlertDialog(
+            onDismissRequest = { movingEntry = null },
+            title = { Text(stringResource(R.string.move_to)) },
+            text = {
+                Column {
+                    SectionPickerRow(
+                        label = stringResource(R.string.free_floating),
+                        selected = entry.sectionId == null,
+                        onClick = {
+                            viewModel.moveEntry(entry.id, null)
+                            movingEntry = null
+                        }
+                    )
+                    uiState.userSections.forEach { sw ->
+                        SectionPickerRow(
+                            label = sw.section.name,
+                            selected = entry.sectionId == sw.section.id,
+                            onClick = {
+                                viewModel.moveEntry(entry.id, sw.section.id)
+                                movingEntry = null
+                            }
+                        )
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { movingEntry = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
 
     // New-entry dialog: optional title + section picker dropdown.
     if (showNewEntryDialog) {
@@ -343,7 +384,8 @@ fun IndexScreen(
                             EntryItem(
                                 entry = entry,
                                 onClick = { onNavigateToEntry(entry.id) },
-                                onDelete = { scope.launch { viewModel.deleteEntry(entry) } }
+                                onDelete = { scope.launch { viewModel.deleteEntry(entry) } },
+                                onMove = { movingEntry = entry }
                             )
                         }
                     }
@@ -355,7 +397,8 @@ fun IndexScreen(
                 EntryItem(
                     entry = entry,
                     onClick = { onNavigateToEntry(entry.id) },
-                    onDelete = { scope.launch { viewModel.deleteEntry(entry) } }
+                    onDelete = { scope.launch { viewModel.deleteEntry(entry) } },
+                    onMove = { movingEntry = entry }
                 )
             }
         }
@@ -409,14 +452,16 @@ private fun WeekItem(
 
 /**
  * A tappable row showing an [entry]'s title. Swiping left triggers [onDelete];
- * tapping triggers [onClick] to open the entry page.
+ * tapping the row opens the entry via [onClick]. The trailing "⋮" button opens
+ * the section picker via [onMove].
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EntryItem(
     entry: Entry,
     onClick: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onMove: () -> Unit
 ) {
     SwipeToDeleteContainer(onDelete = onDelete) {
         NavigationDrawerItem(
@@ -427,6 +472,14 @@ private fun EntryItem(
             },
             selected = false,
             onClick = onClick,
+            badge = {
+                IconButton(onClick = onMove) {
+                    Icon(
+                        Icons.Filled.MoreVert,
+                        contentDescription = stringResource(R.string.move_to)
+                    )
+                }
+            },
             modifier = Modifier.padding(vertical = 2.dp)
         )
     }
@@ -480,4 +533,29 @@ private fun SwipeToDeleteContainer(
         },
         content = { content() }
     )
+}
+
+/**
+ * A full-width row used inside the "Move to…" dialog. Shows a [RadioButton] indicating
+ * whether this destination is [selected], plus a text [label]. Tapping anywhere calls [onClick].
+ */
+@Composable
+private fun SectionPickerRow(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Text(
+            text = label,
+            modifier = Modifier.padding(start = 8.dp)
+        )
+    }
 }

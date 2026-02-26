@@ -18,4 +18,7 @@ interface EntryRepository {
 
     /** Reactively emits all entries ordered by creation time (oldest first). */
     fun getAllEntries(): Flow<List<Entry>>
+
+    /** Reassigns the entry with [entryId] to [newSectionId] (null = free-floating). */
+    suspend fun moveEntry(entryId: Long, newSectionId: Long?)
 }

@@ -23,6 +23,10 @@ interface EntryDao {
     @Query("UPDATE entries SET title = :title, body = :body WHERE id = :id")
     suspend fun updateEntry(id: Long, title: String, body: String)
 
+    /** Reassigns the entry with [id] to [sectionId] (null = free-floating). */
+    @Query("UPDATE entries SET sectionId = :sectionId WHERE id = :id")
+    suspend fun updateSection(id: Long, sectionId: Long?)
+
     /** Permanently removes the given entry. */
     @Delete
     suspend fun deleteEntry(entry: Entry)

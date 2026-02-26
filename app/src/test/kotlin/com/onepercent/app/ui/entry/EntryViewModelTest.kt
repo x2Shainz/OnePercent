@@ -61,6 +61,7 @@ class EntryViewModelTest {
             lastUpdatedBody = body
         }
         override suspend fun deleteEntry(entry: Entry) {}
+        override suspend fun moveEntry(entryId: Long, newSectionId: Long?) {}
     }
 
     @Test
