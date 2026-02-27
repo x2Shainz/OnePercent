@@ -46,10 +46,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -122,19 +120,6 @@ fun IndexScreen(
     var newEntryTitle       by rememberSaveable { mutableStateOf("") }
     var selectedSectionId   by rememberSaveable { mutableStateOf<Long?>(null) }
     var sectionDropExpanded by remember        { mutableStateOf(false) }
-
-    // Locally-owned lists for optimistic reordering; synced from uiState whenever it changes.
-    val localSections = remember { mutableStateListOf<SectionWithEntries>() }
-    LaunchedEffect(uiState.userSections) {
-        localSections.clear()
-        localSections.addAll(uiState.userSections)
-    }
-
-    val localUnassigned = remember { mutableStateListOf<Entry>() }
-    LaunchedEffect(uiState.unassignedEntries) {
-        localUnassigned.clear()
-        localUnassigned.addAll(uiState.unassignedEntries)
-    }
 
     // Move-entry dialog: radio-button list of all sections + free-floating option.
     movingEntry?.let { entry ->
@@ -445,24 +430,20 @@ fun IndexScreen(
             }
 
             // User-created sections — collapsible, swipe-to-delete, drag-to-reorder.
+            // Pass uiState lists directly to ReorderableColumn; the library handles the visual
+            // drag animation internally. onSettle computes the new order and persists it.
             ReorderableColumn(
-                list = localSections,
+                list = uiState.userSections,
                 onSettle = { fromIndex, toIndex ->
-                    localSections.add(toIndex, localSections.removeAt(fromIndex))
-                    viewModel.onSectionsReordered(localSections.map { it.section })
+                    val reordered = uiState.userSections.toMutableList()
+                        .apply { add(toIndex, removeAt(fromIndex)) }
+                    viewModel.onSectionsReordered(reordered.map { it.section })
                 },
                 modifier = Modifier.fillMaxWidth()
             ) { _, swe, _ ->
                 key(swe.section.id) {
                     val section = swe.section
                     val expanded = sectionExpandedState[section.id] ?: true
-
-                    // Per-section local entries for optimistic reordering within the section.
-                    val localEntries = remember { mutableStateListOf<Entry>() }
-                    LaunchedEffect(swe.entries) {
-                        localEntries.clear()
-                        localEntries.addAll(swe.entries)
-                    }
 
                     // Pre-compute drag-handle modifier while we have the outer ReorderableScope.
                     val sectionDragMod = Modifier.draggableHandle()
@@ -480,15 +461,15 @@ fun IndexScreen(
 
                     AnimatedVisibility(visible = expanded) {
                         ReorderableColumn(
-                            list = localEntries,
+                            list = swe.entries,
                             onSettle = { fromIndex, toIndex ->
-                                localEntries.add(toIndex, localEntries.removeAt(fromIndex))
-                                viewModel.onEntriesReordered(section.id, localEntries.toList())
+                                val reordered = swe.entries.toMutableList()
+                                    .apply { add(toIndex, removeAt(fromIndex)) }
+                                viewModel.onEntriesReordered(section.id, reordered)
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) { _, entry, _ ->
                             key(entry.id) {
-                                // Pre-compute drag-handle modifier in the inner ReorderableScope.
                                 val entryDragMod = Modifier.draggableHandle()
 
                                 EntryItem(
@@ -506,10 +487,11 @@ fun IndexScreen(
 
             // Free-floating entries — swipe-to-delete, drag-to-reorder.
             ReorderableColumn(
-                list = localUnassigned,
+                list = uiState.unassignedEntries,
                 onSettle = { fromIndex, toIndex ->
-                    localUnassigned.add(toIndex, localUnassigned.removeAt(fromIndex))
-                    viewModel.onEntriesReordered(null, localUnassigned.toList())
+                    val reordered = uiState.unassignedEntries.toMutableList()
+                        .apply { add(toIndex, removeAt(fromIndex)) }
+                    viewModel.onEntriesReordered(null, reordered)
                 },
                 modifier = Modifier.fillMaxWidth()
             ) { _, entry, _ ->
