@@ -27,4 +27,10 @@ interface EntryRepository {
      * Results are ordered newest-first and update as the DB changes.
      */
     fun searchEntries(query: String): Flow<List<Entry>>
+
+    /**
+     * Persists new [Entry.position] values for [entries], using each item's list index as
+     * its new position. Runs all updates atomically so the DB never shows a partial reorder.
+     */
+    suspend fun reorderEntries(entries: List<Entry>)
 }

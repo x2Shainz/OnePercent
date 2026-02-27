@@ -19,7 +19,11 @@ interface SectionDao {
     @Delete
     suspend fun deleteSection(section: Section)
 
-    /** Returns all sections ordered by creation time (oldest first). */
-    @Query("SELECT * FROM sections ORDER BY createdAt ASC")
+    /** Returns all sections ordered by manual position (lowest first). */
+    @Query("SELECT * FROM sections ORDER BY position ASC")
     fun getAllSections(): Flow<List<Section>>
+
+    /** Updates the [position] of the section with [id]. Used for batch reorder commits. */
+    @Query("UPDATE sections SET position = :position WHERE id = :id")
+    suspend fun updatePosition(id: Long, position: Int)
 }

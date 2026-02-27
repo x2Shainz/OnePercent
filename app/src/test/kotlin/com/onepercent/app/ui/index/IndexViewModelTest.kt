@@ -123,6 +123,12 @@ class IndexViewModelTest {
             lastSearchQuery = query
             return searchResultsFlow
         }
+        var lastReorderedEntries: List<Entry>? = null
+            private set
+
+        override suspend fun reorderEntries(entries: List<Entry>) {
+            lastReorderedEntries = entries
+        }
         override fun getEntryById(id: Long): Flow<Entry?> = flowOf(null)
     }
 
@@ -130,11 +136,17 @@ class IndexViewModelTest {
     private inner class FakeSectionRepository : SectionRepository {
         val sectionsFlow = MutableStateFlow<List<Section>>(emptyList())
 
+        var lastReorderedSections: List<Section>? = null
+            private set
+
         fun emitSections(sections: List<Section>) { sectionsFlow.value = sections }
 
         override fun getAllSections(): Flow<List<Section>> = sectionsFlow
         override suspend fun addSection(name: String): Long = 0L
         override suspend fun deleteSection(section: Section) {}
+        override suspend fun reorderSections(sections: List<Section>) {
+            lastReorderedSections = sections
+        }
     }
 
     // --- currentWeeks tests ---
@@ -282,6 +294,32 @@ class IndexViewModelTest {
         activateFlow()
         vm.createEntry(title = "", sectionId = 7L)
         assertEquals(7L, entryRepo.lastAddedSectionId)
+    }
+
+    // --- reorder tests ---
+
+    @Test
+    fun onEntriesReordered_updatesPositionsInRepo() = runTest {
+        activateFlow()
+        val entries = listOf(
+            Entry(id = 2, title = "B", body = "", sectionId = null, createdAt = 0L),
+            Entry(id = 1, title = "A", body = "", sectionId = null, createdAt = 0L)
+        )
+        vm.onEntriesReordered(sectionId = null, reordered = entries)
+        advanceUntilIdle()
+        assertEquals(entries, entryRepo.lastReorderedEntries)
+    }
+
+    @Test
+    fun onSectionsReordered_updatesPositionsInRepo() = runTest {
+        activateFlow()
+        val sections = listOf(
+            Section(id = 2, name = "B", createdAt = 0L),
+            Section(id = 1, name = "A", createdAt = 0L)
+        )
+        vm.onSectionsReordered(reordered = sections)
+        advanceUntilIdle()
+        assertEquals(sections, sectionRepo.lastReorderedSections)
     }
 
     // --- search tests ---

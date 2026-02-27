@@ -180,4 +180,21 @@ class IndexViewModel @Inject constructor(
     suspend fun deleteSection(section: Section) {
         sectionRepository.deleteSection(section)
     }
+
+    /**
+     * Persists the new display order of entries after a drag-and-drop reorder.
+     * [sectionId] identifies which group was reordered (null = free-floating entries).
+     * [reordered] is the full reordered list; each item's list index becomes its new position.
+     */
+    fun onEntriesReordered(sectionId: Long?, reordered: List<Entry>) {
+        viewModelScope.launch { entryRepository.reorderEntries(reordered) }
+    }
+
+    /**
+     * Persists the new display order of user sections after a drag-and-drop reorder.
+     * [reordered] is the full reordered list; each item's list index becomes its new position.
+     */
+    fun onSectionsReordered(reordered: List<Section>) {
+        viewModelScope.launch { sectionRepository.reorderSections(reordered) }
+    }
 }

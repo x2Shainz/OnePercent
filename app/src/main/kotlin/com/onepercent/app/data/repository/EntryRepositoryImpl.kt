@@ -1,10 +1,15 @@
 package com.onepercent.app.data.repository
 
+import androidx.room.withTransaction
+import com.onepercent.app.data.db.AppDatabase
 import com.onepercent.app.data.db.EntryDao
 import com.onepercent.app.data.model.Entry
 import kotlinx.coroutines.flow.Flow
 
-class EntryRepositoryImpl(private val entryDao: EntryDao) : EntryRepository {
+class EntryRepositoryImpl(
+    private val db: AppDatabase,
+    private val entryDao: EntryDao
+) : EntryRepository {
 
     override suspend fun addEntry(title: String, body: String, sectionId: Long?): Long =
         entryDao.insertEntry(
@@ -30,4 +35,12 @@ class EntryRepositoryImpl(private val entryDao: EntryDao) : EntryRepository {
 
     override fun searchEntries(query: String): Flow<List<Entry>> =
         entryDao.searchEntries(query)
+
+    override suspend fun reorderEntries(entries: List<Entry>) {
+        db.withTransaction {
+            entries.forEachIndexed { index, entry ->
+                entryDao.updatePosition(entry.id, index)
+            }
+        }
+    }
 }

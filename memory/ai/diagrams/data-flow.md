@@ -238,6 +238,32 @@ sequenceDiagram
     Screen->>Screen: navController.popBackStack()
 ```
 
+## Reordering Entries or Sections (IndexScreen drag-and-drop)
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Screen as IndexScreen
+    participant VM as IndexViewModel
+    participant ERepo as EntryRepositoryImpl
+    participant SRepo as SectionRepositoryImpl
+    participant DAO as EntryDao / SectionDao
+    participant DB as Room / SQLite
+
+    Note over Screen: ReorderableColumn renders entries or sections\nwith drag handles (long-press to start drag)
+    User->>Screen: Long-press drag handle, drag item to new position
+    Screen->>Screen: localSections / localEntries updated optimistically\n(mutableStateListOf gives immediate visual feedback)
+    User->>Screen: Release drag
+    Screen->>VM: onEntriesReordered(sectionId, reorderedList)\nor onSectionsReordered(reorderedList)
+    Note over VM: viewModelScope.launch (non-suspending call site)
+    VM->>ERepo: reorderEntries(entries)\nor SRepo.reorderSections(sections)
+    Note over ERepo: withTransaction — all updates are atomic
+    ERepo->>DAO: updatePosition(id, index) for each item
+    DAO->>DB: UPDATE entries SET position = ? WHERE id = ?
+    DB-->>DAO: success (all rows)
+    Note over VM: combine() re-emits DB changes → uiState updates\nLocalSections LaunchedEffect syncs back (same order)
+```
+
 ## Loading the Future Log (FutureLogScreen)
 
 ```mermaid

@@ -43,17 +43,21 @@ interface EntryDao {
     @Query("SELECT * FROM entries WHERE id = :id")
     fun getEntryById(id: Long): Flow<Entry?>
 
-    /** Returns all entries ordered by creation time (oldest first). */
-    @Query("SELECT * FROM entries ORDER BY createdAt ASC")
+    /** Returns all entries ordered by manual position (lowest first). */
+    @Query("SELECT * FROM entries ORDER BY position ASC")
     fun getAllEntries(): Flow<List<Entry>>
 
-    /** Returns all entries belonging to [sectionId], ordered by creation time. */
-    @Query("SELECT * FROM entries WHERE sectionId = :sectionId ORDER BY createdAt ASC")
+    /** Returns all entries belonging to [sectionId], ordered by manual position. */
+    @Query("SELECT * FROM entries WHERE sectionId = :sectionId ORDER BY position ASC")
     fun getEntriesForSection(sectionId: Long): Flow<List<Entry>>
 
-    /** Returns all entries with no section assignment, ordered by creation time. */
-    @Query("SELECT * FROM entries WHERE sectionId IS NULL ORDER BY createdAt ASC")
+    /** Returns all entries with no section assignment, ordered by manual position. */
+    @Query("SELECT * FROM entries WHERE sectionId IS NULL ORDER BY position ASC")
     fun getUnassignedEntries(): Flow<List<Entry>>
+
+    /** Updates the [position] of the entry with [id]. Used for batch reorder commits. */
+    @Query("UPDATE entries SET position = :position WHERE id = :id")
+    suspend fun updatePosition(id: Long, position: Int)
 
     /**
      * Returns all entries whose [Entry.title] or [Entry.body] contains [query] (case-insensitive),

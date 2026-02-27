@@ -63,6 +63,7 @@ class EntryViewModelTest {
         override suspend fun deleteEntry(entry: Entry) {}
         override suspend fun moveEntry(entryId: Long, newSectionId: Long?) {}
         override fun searchEntries(query: String): Flow<List<Entry>> = flowOf(emptyList())
+        override suspend fun reorderEntries(entries: List<Entry>) {}
     }
 
     @Test

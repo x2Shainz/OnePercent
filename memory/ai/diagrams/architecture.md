@@ -46,9 +46,9 @@ graph TD
 
     subgraph DATA["Data Layer (Room)"]
         TDAO[TaskDao\ninsertTask / getTasksForDay\ngetTasksForWeek / getEarliestDueDate\ngetTasksAfter]
-        EDAO[EntryDao\ninsert / update / delete\nclearSection / getById\ngetAll / getForSection\ngetUnassigned]
-        SDAO[SectionDao\ninsert / delete / getAll]
-        DB[AppDatabase v2\nSingleton + MIGRATION_1_2]
+        EDAO[EntryDao\ninsert / update / delete\nclearSection / getById\ngetAll / getForSection\ngetUnassigned / updatePosition\nsearchEntries]
+        SDAO[SectionDao\ninsert / delete / getAll\nupdatePosition]
+        DB[AppDatabase v3\nSingleton + MIGRATION_1_2 + MIGRATION_2_3]
         SQLITE[(onepercent.db\nSQLite)]
     end
 

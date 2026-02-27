@@ -38,10 +38,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideEntryRepository(db: AppDatabase): EntryRepository =
-        EntryRepositoryImpl(db.entryDao())
+        EntryRepositoryImpl(db, db.entryDao())
 
     @Provides
     @Singleton
     fun provideSectionRepository(db: AppDatabase): SectionRepository =
-        SectionRepositoryImpl(db.sectionDao(), db.entryDao())
+        SectionRepositoryImpl(db, db.sectionDao(), db.entryDao())
 }

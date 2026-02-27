@@ -1,6 +1,6 @@
 # Database Schema
 
-Room database: `onepercent.db` — version 2
+Room database: `onepercent.db` — version 3
 
 ```mermaid
 erDiagram
@@ -13,7 +13,8 @@ erDiagram
     SECTIONS {
         INTEGER id        PK "autoGenerate = true"
         TEXT    name      "display name for the section header"
-        INTEGER createdAt "epoch milliseconds — used for ascending ordering"
+        INTEGER createdAt "epoch milliseconds — kept for reference"
+        INTEGER position  "manual sort order; lower = higher in list"
     }
 
     ENTRIES {
@@ -21,7 +22,8 @@ erDiagram
         TEXT    title     "headline shown on the Index screen"
         TEXT    body      "full editable content on the Entry screen"
         INTEGER sectionId "FK to SECTIONS.id — nullable (free-floating if null)"
-        INTEGER createdAt "epoch milliseconds — used for ascending ordering"
+        INTEGER createdAt "epoch milliseconds — kept for reference"
+        INTEGER position  "manual sort order within sectionId group (or free-floating)"
     }
 
     SECTIONS ||--o{ ENTRIES : "groups (nullable)"
@@ -33,6 +35,7 @@ erDiagram
 |---------|--------|
 | v1 | `tasks` table |
 | v2 | `sections` and `entries` tables added (`Migration(1, 2)` in `AppDatabase.kt`) |
+| v3 | `position INTEGER NOT NULL DEFAULT 0` added to both tables; backfilled from `createdAt` order (`Migration(2, 3)` in `AppDatabase.kt`) |
 
 ## Notes
 

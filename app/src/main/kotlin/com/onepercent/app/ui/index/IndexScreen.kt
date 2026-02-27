@@ -17,27 +17,28 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.SearchBar
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -45,7 +46,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,13 +70,16 @@ import com.onepercent.app.data.model.Section
 import com.onepercent.app.util.WeekCalculator
 import com.onepercent.app.util.WeekRange
 import kotlinx.coroutines.launch
+import sh.calvin.reorderable.ReorderableColumn
 
 /**
  * The main index screen of the bullet journal, showing collapsible built-in sections
  * (Past Weeks, Current Weeks, Future Log link, Monthly Logs) followed by user-created
  * sections and free-floating entries.
  *
- * Collapsed/expanded state is ephemeral — it resets each time the user navigates to this screen.
+ * User sections and free-floating entries support drag-to-reorder (long-press the drag handle,
+ * then drag) and swipe-to-delete (quick horizontal swipe). Collapsed/expanded state is
+ * ephemeral — it resets each time the user navigates to this screen.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Preview
@@ -90,7 +97,7 @@ fun IndexScreen(
     val scope = rememberCoroutineScope()
 
     // Built-in section collapse state
-    var pastWeeksExpanded   by rememberSaveable { mutableStateOf(false) }
+    var pastWeeksExpanded    by rememberSaveable { mutableStateOf(false) }
     var currentWeeksExpanded by rememberSaveable { mutableStateOf(true) }
     var monthlyLogsExpanded  by rememberSaveable { mutableStateOf(false) }
 
@@ -98,16 +105,16 @@ fun IndexScreen(
     val sectionExpandedState = remember { mutableStateMapOf<Long, Boolean>() }
 
     // FAB add-menu state
-    var showAddMenu by rememberSaveable { mutableStateOf(false) }
+    var showAddMenu      by rememberSaveable { mutableStateOf(false) }
     var showSectionDialog by rememberSaveable { mutableStateOf(false) }
-    var sectionNameInput by rememberSaveable { mutableStateOf("") }
+    var sectionNameInput  by rememberSaveable { mutableStateOf("") }
 
     // Search state
     var searchActive by rememberSaveable { mutableStateOf(false) }
-    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val searchQuery  by viewModel.searchQuery.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
 
-    // Move-entry dialog state (not rememberSaveable — Entry is not Parcelable; dialog closes on rotation)
+    // Move-entry dialog state (not rememberSaveable — Entry is not Parcelable)
     var movingEntry by remember { mutableStateOf<Entry?>(null) }
 
     // New-entry dialog state
@@ -115,6 +122,19 @@ fun IndexScreen(
     var newEntryTitle       by rememberSaveable { mutableStateOf("") }
     var selectedSectionId   by rememberSaveable { mutableStateOf<Long?>(null) }
     var sectionDropExpanded by remember        { mutableStateOf(false) }
+
+    // Locally-owned lists for optimistic reordering; synced from uiState whenever it changes.
+    val localSections = remember { mutableStateListOf<SectionWithEntries>() }
+    LaunchedEffect(uiState.userSections) {
+        localSections.clear()
+        localSections.addAll(uiState.userSections)
+    }
+
+    val localUnassigned = remember { mutableStateListOf<Entry>() }
+    LaunchedEffect(uiState.unassignedEntries) {
+        localUnassigned.clear()
+        localUnassigned.addAll(uiState.unassignedEntries)
+    }
 
     // Move-entry dialog: radio-button list of all sections + free-floating option.
     movingEntry?.let { entry ->
@@ -424,44 +444,86 @@ fun IndexScreen(
                 }
             }
 
-            // User-created sections (collapsible, swipe-to-delete).
-            uiState.userSections.forEach { sectionWithEntries ->
-                val section = sectionWithEntries.section
-                val expanded = sectionExpandedState[section.id] ?: true
+            // User-created sections — collapsible, swipe-to-delete, drag-to-reorder.
+            ReorderableColumn(
+                list = localSections,
+                onSettle = { fromIndex, toIndex ->
+                    localSections.add(toIndex, localSections.removeAt(fromIndex))
+                    viewModel.onSectionsReordered(localSections.map { it.section })
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) { _, swe, _ ->
+                key(swe.section.id) {
+                    val section = swe.section
+                    val expanded = sectionExpandedState[section.id] ?: true
 
-                SwipeToDeleteContainer(
-                    onDelete = { scope.launch { viewModel.deleteSection(section) } }
-                ) {
-                    CollapsibleSectionHeader(
-                        title = section.name,
-                        expanded = expanded,
-                        onToggle = {
-                            sectionExpandedState[section.id] = !expanded
-                        }
-                    )
-                }
-                AnimatedVisibility(visible = expanded) {
-                    Column {
-                        sectionWithEntries.entries.forEach { entry ->
-                            EntryItem(
-                                entry = entry,
-                                onClick = { onNavigateToEntry(entry.id) },
-                                onDelete = { scope.launch { viewModel.deleteEntry(entry) } },
-                                onMove = { movingEntry = entry }
-                            )
+                    // Per-section local entries for optimistic reordering within the section.
+                    val localEntries = remember { mutableStateListOf<Entry>() }
+                    LaunchedEffect(swe.entries) {
+                        localEntries.clear()
+                        localEntries.addAll(swe.entries)
+                    }
+
+                    // Pre-compute drag-handle modifier while we have the outer ReorderableScope.
+                    val sectionDragMod = Modifier.draggableHandle()
+
+                    SwipeToDeleteContainer(
+                        onDelete = { scope.launch { viewModel.deleteSection(section) } }
+                    ) {
+                        CollapsibleSectionHeader(
+                            title = section.name,
+                            expanded = expanded,
+                            onToggle = { sectionExpandedState[section.id] = !expanded },
+                            dragHandleModifier = sectionDragMod
+                        )
+                    }
+
+                    AnimatedVisibility(visible = expanded) {
+                        ReorderableColumn(
+                            list = localEntries,
+                            onSettle = { fromIndex, toIndex ->
+                                localEntries.add(toIndex, localEntries.removeAt(fromIndex))
+                                viewModel.onEntriesReordered(section.id, localEntries.toList())
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { _, entry, _ ->
+                            key(entry.id) {
+                                // Pre-compute drag-handle modifier in the inner ReorderableScope.
+                                val entryDragMod = Modifier.draggableHandle()
+
+                                EntryItem(
+                                    entry = entry,
+                                    onClick = { onNavigateToEntry(entry.id) },
+                                    onDelete = { scope.launch { viewModel.deleteEntry(entry) } },
+                                    onMove = { movingEntry = entry },
+                                    dragHandleModifier = entryDragMod
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            // Free-floating entries (no section assignment, swipe-to-delete).
-            uiState.unassignedEntries.forEach { entry ->
-                EntryItem(
-                    entry = entry,
-                    onClick = { onNavigateToEntry(entry.id) },
-                    onDelete = { scope.launch { viewModel.deleteEntry(entry) } },
-                    onMove = { movingEntry = entry }
-                )
+            // Free-floating entries — swipe-to-delete, drag-to-reorder.
+            ReorderableColumn(
+                list = localUnassigned,
+                onSettle = { fromIndex, toIndex ->
+                    localUnassigned.add(toIndex, localUnassigned.removeAt(fromIndex))
+                    viewModel.onEntriesReordered(null, localUnassigned.toList())
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) { _, entry, _ ->
+                key(entry.id) {
+                    val entryDragMod = Modifier.draggableHandle()
+
+                    EntryItem(
+                        entry = entry,
+                        onClick = { onNavigateToEntry(entry.id) },
+                        onDelete = { scope.launch { viewModel.deleteEntry(entry) } },
+                        onMove = { movingEntry = entry },
+                        dragHandleModifier = entryDragMod
+                    )
+                }
             }
         }
     }
@@ -469,13 +531,15 @@ fun IndexScreen(
 
 /**
  * A tappable row that shows a section title and an expand/collapse chevron icon.
- * Tapping anywhere on the row toggles [expanded] via [onToggle].
+ * Tapping anywhere on the row toggles [expanded] via [onToggle]. When [dragHandleModifier]
+ * is provided, a drag handle icon is shown at the leading edge for drag-to-reorder.
  */
 @Composable
 private fun CollapsibleSectionHeader(
     title: String,
     expanded: Boolean,
-    onToggle: () -> Unit
+    onToggle: () -> Unit,
+    dragHandleModifier: Modifier? = null
 ) {
     Row(
         modifier = Modifier
@@ -484,6 +548,14 @@ private fun CollapsibleSectionHeader(
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        if (dragHandleModifier != null) {
+            Icon(
+                imageVector = Icons.Filled.DragHandle,
+                contentDescription = stringResource(R.string.drag_to_reorder),
+                modifier = dragHandleModifier.padding(end = 8.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         Text(
             text = title,
             style = MaterialTheme.typography.titleSmall,
@@ -515,7 +587,8 @@ private fun WeekItem(
 /**
  * A tappable row showing an [entry]'s title. Swiping left triggers [onDelete];
  * tapping the row opens the entry via [onClick]. The trailing "⋮" button opens
- * the section picker via [onMove].
+ * the section picker via [onMove]. When [dragHandleModifier] is provided, a drag
+ * handle icon is shown at the leading edge for drag-to-reorder.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -523,7 +596,8 @@ private fun EntryItem(
     entry: Entry,
     onClick: () -> Unit,
     onDelete: () -> Unit,
-    onMove: () -> Unit
+    onMove: () -> Unit,
+    dragHandleModifier: Modifier? = null
 ) {
     SwipeToDeleteContainer(onDelete = onDelete) {
         NavigationDrawerItem(
@@ -534,6 +608,15 @@ private fun EntryItem(
             },
             selected = false,
             onClick = onClick,
+            icon = if (dragHandleModifier != null) {
+                {
+                    Icon(
+                        imageVector = Icons.Filled.DragHandle,
+                        contentDescription = stringResource(R.string.drag_to_reorder),
+                        modifier = dragHandleModifier
+                    )
+                }
+            } else null,
             badge = {
                 IconButton(onClick = onMove) {
                     Icon(

@@ -19,10 +19,11 @@ import com.onepercent.app.data.model.Task
  * **Version history**
  * - v1: `tasks` table
  * - v2: `sections` and `entries` tables added ([MIGRATION_1_2])
+ * - v3: `position INTEGER` column added to both tables for manual reordering ([MIGRATION_2_3])
  */
 @Database(
     entities = [Task::class, Entry::class, Section::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -66,6 +67,34 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
         /**
+         * Adds a `position INTEGER NOT NULL DEFAULT 0` column to both `sections` and `entries`,
+         * then backfills each row's position from its relative `createdAt` order within its group
+         * (sections share one global group; entries are grouped by `sectionId`).
+         */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE sections ADD COLUMN position INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE entries  ADD COLUMN position INTEGER NOT NULL DEFAULT 0")
+                // Backfill sections: rank by createdAt across all sections
+                db.execSQL("""
+                    UPDATE sections SET position = (
+                        SELECT COUNT(*) FROM sections s2 WHERE s2.createdAt < sections.createdAt
+                    )
+                """.trimIndent())
+                // Backfill entries: rank by createdAt within each sectionId group
+                // (NULL sectionId forms its own group — free-floating entries)
+                db.execSQL("""
+                    UPDATE entries SET position = (
+                        SELECT COUNT(*) FROM entries e2
+                        WHERE (e2.sectionId = entries.sectionId
+                               OR (e2.sectionId IS NULL AND entries.sectionId IS NULL))
+                          AND e2.createdAt < entries.createdAt
+                    )
+                """.trimIndent())
+            }
+        }
+
+        /**
          * Returns the singleton [AppDatabase], creating it on first call.
          * Uses double-checked locking to avoid redundant initialisation under concurrency.
          */
@@ -76,7 +105,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "onepercent.db"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                     .also { INSTANCE = it }
             }

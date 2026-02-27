@@ -14,6 +14,12 @@ interface SectionRepository {
      */
     suspend fun deleteSection(section: Section)
 
-    /** Reactively emits all sections ordered by creation time (oldest first). */
+    /** Reactively emits all sections ordered by manual position (lowest first). */
     fun getAllSections(): Flow<List<Section>>
+
+    /**
+     * Persists new [Section.position] values for [sections], using each item's list index as
+     * its new position. Runs all updates atomically so the DB never shows a partial reorder.
+     */
+    suspend fun reorderSections(sections: List<Section>)
 }
